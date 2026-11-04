@@ -146,6 +146,25 @@ XX.ui = (function () {
       }).join('') + '</div>' : '');
   };
 
+  /* 关于 / 开源出处 */
+  ui.about = function () {
+    var A = XX.config.about;
+    ui.modal({
+      title: '关于', cls: 'about-modal',
+      html: '<div class="about">' +
+        '<div class="about-name">问道长生</div><div class="muted small center">修仙 · 放置 · 长生 &nbsp;v' + XX.config.version + '</div>' +
+        '<div class="about-box"><div><span>作者</span><b>' + A.author + '</b></div>' +
+        '<div><span>开源协议</span><b>' + A.license + ' License</b></div>' +
+        '<div><span>源码地址</span><a href="' + A.repo + '" target="_blank" rel="noopener">' + A.repo.replace(/^https?:\/\//, '') + '</a></div></div>' +
+        '<p class="small">Copyright © ' + A.year + ' ' + A.author + '<br>本游戏(代码与图片素材)以 ' + A.license + ' 许可证开源:可自由使用、修改、分发,但须保留版权声明与许可声明。本软件按"原样"提供,不附带任何担保。</p></div>',
+      buttons: [{ text: '复制源码地址', onClick: function () {
+        var done = function () { ui.toast('已复制源码地址', 'ok'); };
+        try { navigator.clipboard.writeText(A.repo).then(done, function () { ui.toast(A.repo); }); } catch (e) { ui.toast(A.repo); }
+        return false;
+      } }, { text: '好', cls: 'primary' }]
+    });
+  };
+
   /* 炼器预览:成品属性范围、固定效果(炼器界面点击法宝查看) */
   ui.equipPreview = function (id, pw, mul, extraHtml) {
     var D = XX.data, it = D.items[id], q = it.q || 0, pv = XX.sys.inv.previewEquip(id, q, pw, mul);

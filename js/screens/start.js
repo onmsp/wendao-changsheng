@@ -21,7 +21,8 @@ XX.screens.start = (function () {
       '  <button class="btn plaque" id="btn-continue"' + (has ? '' : ' disabled') + '>再续仙缘</button>' +
       '  <button class="btn plaque gray" id="btn-online">联网<em>暂未开放</em></button>' +
       '</div>' +
-      '<div class="start-foot">v' + XX.config.version + ' · 仙路漫漫 唯心不移</div>';
+      '<div class="start-foot">v' + XX.config.version + ' · 仙路漫漫 唯心不移' +
+      '<button class="start-about" id="btn-about">© ' + XX.config.about.year + ' ' + XX.config.about.author + ' · ' + XX.config.about.license + ' 开源 · 关于</button></div>';
 
     U.$('#btn-new').onclick = function () {
       if (XX.store.hasSave()) {
@@ -34,6 +35,7 @@ XX.screens.start = (function () {
       if (!XX.store.load()) { XX.ui.toast('未找到存档', 'warn'); return; }
       XX.go('game', { offline: true });
     };
+    U.$('#btn-about').onclick = XX.ui.about;
     U.$('#btn-online').onclick = function () { XX.ui.toast('联网玩法尚在筹备中,敬请期待'); };
   };
 

@@ -157,3 +157,14 @@
 }
 
 .zoom-hint { position: absolute; right: 10px; bottom: 8px; z-index: 3; font-size: 11px; color: #fff; background: rgba(0, 0, 0, .45); border: 1px solid rgba(232, 199, 122, .35); border-radius: 10px; padding: 2px 8px; pointer-events: none; }
+
+/* ---------- 关于 / 开源出处 ---------- */
+.start-about { display: block; margin: 6px auto 0; background: none; border: 0; padding: 4px 10px; font: inherit; font-size: 11px; color: rgba(246, 227, 174, .85); letter-spacing: 1px; text-decoration: underline dotted rgba(246, 227, 174, .5); text-underline-offset: 3px; cursor: pointer; text-shadow: 0 1px 3px #000; }
+.about-name { text-align: center; font-family: var(--font-title); font-size: 26px; letter-spacing: 6px; color: var(--gold-2); }
+.about-box { margin: 12px 0; border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; background: rgba(10, 16, 28, .5); }
+.about-box > div { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; font-size: 13px; border-bottom: 1px dashed var(--line); }
+.about-box > div:last-child { border-bottom: 0; }
+.about-box span { color: #9aa6bd; flex: none; }
+.about-box b { font-weight: normal; color: var(--gold-2); }
+.about-box a { color: #8fd8ff; word-break: break-all; text-align: right; }
+.about p { line-height: 1.6; color: #cfd6e4; }

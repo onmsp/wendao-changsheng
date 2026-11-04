@@ -3,7 +3,9 @@ window.XX = window.XX || { data: {}, sys: {}, pages: {}, screens: {} };
 
 XX.config = {
   gameName: '问道长生',
-  version: '0.1.6',
+  version: '0.1.7',
+  /* 开源出处(游戏内「关于」页与开始页底部显示) */
+  about: { author: 'onmsp', year: 2026, license: 'MIT', repo: 'https://github.com/onmsp/wendao-changsheng' },
   saveKey: 'wendao_changsheng_save',
   tickMs: 3000,            // 修炼结算周期:每 3 秒
   bagCapacity: 50,         // 初始背包格子

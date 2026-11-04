@@ -108,8 +108,10 @@ XX.screens.game = (function () {
     var st = XX.store.state;
     XX.ui.modal({
       title: '设置',
-      html: '<p class="muted small center">存档自动保存在本浏览器中(每 5 秒)。<br>版本 v' + XX.config.version + '</p>',
+      html: '<p class="muted small center">存档自动保存在本浏览器中(每 5 秒)。<br>版本 v' + XX.config.version + '</p>' +
+        '<p class="muted small center">© ' + XX.config.about.year + ' ' + XX.config.about.author + ' · ' + XX.config.about.license + ' 开源</p>',
       buttons: [
+        { text: '关于', onClick: function () { XX.ui.about(); } },
         { text: '返回标题', onClick: function () { XX.store.save(); XX.go('start'); } },
         { text: '删除存档', cls: 'danger', onClick: function () {
           XX.ui.confirm('删除存档', '<p class="center danger">此操作不可恢复,确定删除全部进度?</p>', function () { G.hide(); XX.store.wipe(); XX.go('start'); }, '删除');
