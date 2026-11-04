@@ -1,4 +1,4 @@
-/* 人物:属性计算、修炼、突破、功法神通栏位 */
+/* 人物:属性计算、修炼、突破、功法技能栏位 */
 XX.sys.player = (function () {
   var P = {}, D = XX.data, U = XX.util, C = XX.config;
   function st() { return XX.store.state; }
@@ -7,31 +7,44 @@ XX.sys.player = (function () {
   P.root = function () { return D.roots.filter(function (r) { return r.id === st().root; })[0]; };
   P.realm = function (i) { return D.realms[i == null ? st().realm : i]; };
   P.nextRealm = function () { return D.realms[st().realm + 1] || null; };
+  /* 阵法:等级 0 = 未布置 */
   P.arrayLv = function (id) { return (st().cave.arrays || {})[id] || 0; };
-  P.arrayVal = function (id) {
-    var def = D.arrays.filter(function (a) { return a.id === id; })[0];
-    return def ? def.per * P.arrayLv(id) : 0;
+  P.arrayEffects = function () {
+    var sum = {};
+    D.arrays.forEach(function (a) {
+      var lv = P.arrayLv(a.id);
+      if (!lv) return;
+      var m = D.lvMul(lv) * XX.sys.inv.bpMul(a.id);
+      Object.keys(a.effects).forEach(function (k) { sum[k] = (sum[k] || 0) + a.effects[k] * m; });
+    });
+    return sum;
   };
+  P.arrayEff = function (key) { return P.arrayEffects()[key] || 0; };
   /* 角色图片:kind = stand/med/avatar/bidle/bwind/batk/bcast/bhurt;hd = 高清原图 */
   P.img = function (kind, id, hd) { return U.img('char/' + (hd ? 'hd/' : '') + (id || st().charId) + '_' + kind); };
 
-  /* ---------- 功法神通 ---------- */
+  /* ---------- 功法技能 ---------- */
   P.slots = function () {
     var major = P.realm().major, rule = C.techniqueSlots[C.techniqueSlots.length - 1];
     for (var i = 0; i < C.techniqueSlots.length; i++) if (major <= C.techniqueSlots[i].maxMajor) { rule = C.techniqueSlots[i]; break; }
     return rule;
   };
   P.gongfa = function () { var id = st().skills.gongfa; return id ? D.gongfa[id] : null; };
+  P.gfLv = function (id) { return ((st().skills.gfLv || {})[id]) || 1; };
   P.activeShentong = function () {
     var n = P.slots().shentong;
     return st().skills.shentong.slice(0, n).filter(function (x) { return x && D.shentong[x]; });
   };
+  /* 灵根转化度(洗灵液) */
+  P.rootGrade = function () { return P.root().grade; };
 
   /* 加成汇总:模板天赋 + 功法 + 法宝特殊属性(stat 类) */
   P.bonus = function () {
     var sum = {}, add = function (o) { Object.keys(o || {}).forEach(function (k) { sum[k] = (sum[k] || 0) + o[k]; }); };
     add(P.tpl().bonus);
-    if (P.gongfa()) add(D.gongfaEffects(st().skills.gongfa));
+    if (P.gongfa()) add(D.gongfaEffects(st().skills.gongfa, P.gfLv(st().skills.gongfa)));
+    var ae = P.arrayEffects();
+    ['rate', 'atkPct', 'defPct', 'hpPct', 'dodge', 'critDmg'].forEach(function (k) { if (ae[k]) { var o = {}; o[k] = ae[k]; add(o); } });
     st().equip.forEach(function (e) {
       if (!e || !e.affixes) return;
       e.affixes.forEach(function (a) { if (D.affixes[a.id] && D.affixes[a.id].kind === 'stat') { var o = {}; o[a.id] = a.v; add(o); } });
@@ -55,7 +68,7 @@ XX.sys.player = (function () {
   };
   P.rateMul = function () {
     var b = P.bonus();
-    return 1 + P.breakRate() + P.arrayVal('juling') + (st().perm.rateBonus || 0) + (b.rate || 0) + P.timed('rate');
+    return 1 + P.breakRate() + (st().perm.rateBonus || 0) + (b.rate || 0) + P.timed('rate');
   };
   P.rate = function () { return U.trunc2(P.root().rate * P.rateMul()); };
 
@@ -63,7 +76,8 @@ XX.sys.player = (function () {
     var sum = {};
     st().equip.forEach(function (e) {
       if (!e) return;
-      Object.keys(e.stats).forEach(function (k) { sum[k] = (sum[k] || 0) + e.stats[k]; });
+      var es = XX.sys.inv.eqStats(e);
+      Object.keys(es).forEach(function (k) { sum[k] = (sum[k] || 0) + es[k]; });
     });
     return sum;
   };
@@ -72,10 +86,10 @@ XX.sys.player = (function () {
   P.stats = function () {
     var s = st(), r = P.realm(), b = P.bonus(), eq = P.equipStats();
     var g = function (o, k) { return o[k] || 0; };
-    var hp = (r.stats.hp + g(eq, 'hp')) * (1 + g(b, 'hpPct') + (s.perm.hpPct || 0) + P.arrayVal('jinguang'));
+    var hp = (r.stats.hp + g(eq, 'hp')) * (1 + g(b, 'hpPct') + (s.perm.hpPct || 0));
     var mp = (r.stats.mp + g(eq, 'mp')) * (1 + g(b, 'mpPct'));
-    var atk = (r.stats.atk + g(eq, 'atk')) * (1 + g(b, 'atkPct') + P.arrayVal('shafa') + P.timed('atk'));
-    var def = (r.stats.def + g(eq, 'def')) * (1 + g(b, 'defPct') + P.arrayVal('jinguang') + P.timed('def'));
+    var atk = (r.stats.atk + g(eq, 'atk')) * (1 + g(b, 'atkPct') + P.timed('atk'));
+    var def = (r.stats.def + g(eq, 'def')) * (1 + g(b, 'defPct') + P.timed('def'));
     var spd = (r.stats.spd + g(eq, 'spd')) * (1 + g(b, 'spdPct'));
     var sense = (r.stats.sense + g(eq, 'sense')) * (1 + g(b, 'sensePct'));
     return {
@@ -110,7 +124,7 @@ XX.sys.player = (function () {
     var m = C.bagMax;
     return m.base + Math.max(0, P.realm().major - m.perMajorAfter) * m.add;
   };
-  /* 神通等级 */
+  /* 技能等级 */
   P.stLv = function (id) { return ((st().skills.stLv || {})[id]) || 1; };
 
   P.expNeed = function () { return P.realm().expNeed; };
@@ -175,7 +189,7 @@ XX.sys.player = (function () {
         var jade = 20 * P.realm().major;
         s.jade += jade;
         msg += ',获得仙玉 ×' + jade;
-        if (P.slots().shentong > slotsBefore) msg += ',神通栏位增加至 ' + P.slots().shentong + ' 个!';
+        if (P.slots().shentong > slotsBefore) msg += ',技能栏位增加至 ' + P.slots().shentong + ' 个!';
       }
       XX.store.addLog((info.major ? '天地异象!' : '') + '突破至「' + P.realm().name + '」,修炼速度 +' + U.pct(info.rateGain, 0) + '。');
       XX.bus.emit('realm');

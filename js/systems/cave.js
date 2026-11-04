@@ -6,17 +6,37 @@ XX.sys.cave = (function () {
   function P() { return XX.sys.player; }
   function inv() { return XX.sys.inv; }
 
-  /* ---------- 通用升级消耗 ---------- */
+  /* ---------- 通用升级消耗:1~5 级 灵石+玄铁;6~10 级 灵石+玄铁精+仙玉 ---------- */
   K.costAt = function (def, target, disc) {
+    var M = D.upgradeMul;
     return {
-      stone: Math.round(def.stoneBase * D.upgradeMul.stone[target] * (1 - (disc || 0))),
-      jade: Math.round(def.jadeBase * D.upgradeMul.jade[target])
+      stone: Math.round(def.stoneBase * M.stone[target] * (1 - (disc || 0))),
+      iron: Math.round((def.ironBase || 0) * M.iron[target]),
+      ironG: Math.round((def.ironBase || 0) * M.ironG[target]),
+      jade: Math.round(def.jadeBase * M.jade[target])
     };
   };
-  K.canPay = function (c) { return st().stone >= c.stone && st().jade >= c.jade; };
-  K.pay = function (c) { st().stone -= c.stone; st().jade -= c.jade; };
+  K.canPay = function (c) {
+    return st().stone >= c.stone && st().jade >= c.jade && inv().count(D.upgradeMat.iron) >= c.iron && inv().count(D.upgradeMat.ironG) >= c.ironG;
+  };
+  K.lackText = function (c) {
+    if (st().stone < c.stone) return '灵石不足';
+    if (inv().count(D.upgradeMat.iron) < c.iron) return D.items[D.upgradeMat.iron].name + '不足';
+    if (inv().count(D.upgradeMat.ironG) < c.ironG) return D.items[D.upgradeMat.ironG].name + '不足';
+    if (st().jade < c.jade) return '仙玉不足';
+    return '';
+  };
+  K.pay = function (c) {
+    st().stone -= c.stone; st().jade -= c.jade;
+    if (c.iron) inv().remove(D.upgradeMat.iron, c.iron);
+    if (c.ironG) inv().remove(D.upgradeMat.ironG, c.ironG);
+  };
   K.costText = function (c) {
-    return '<img class="ci" src="' + U.img('icon/lingshi') + '">' + U.num(c.stone) + (c.jade ? ' <img class="ci" src="' + U.img('icon/xianyu') + '">' + c.jade : '');
+    var t = '<img class="ci" src="' + U.img('icon/lingshi') + '">' + U.num(c.stone);
+    if (c.iron) t += ' <span class="cost-mat" style="color:' + U.qColor(0) + '">' + U.itemIcon(D.upgradeMat.iron, 'xs') + c.iron + '</span>';
+    if (c.ironG) t += ' <span class="cost-mat" style="color:' + U.qColor(1) + '">' + U.itemIcon(D.upgradeMat.ironG, 'xs') + c.ironG + '</span>';
+    if (c.jade) t += ' <img class="ci" src="' + U.img('icon/xianyu') + '">' + c.jade;
+    return t;
   };
 
   /* ---------- 设施 ---------- */
@@ -26,8 +46,7 @@ XX.sys.cave = (function () {
     var lv = K.lv(key), f = D.facilities[key];
     if (lv >= C.caveMaxLv) return { ok: false, msg: f.name + '已达最高等级' };
     var c = K.facilityCost(key);
-    if (st().stone < c.stone) return { ok: false, msg: '灵石不足' };
-    if (st().jade < c.jade) return { ok: false, msg: '仙玉不足' };
+    if (!K.canPay(c)) return { ok: false, msg: K.lackText(c) };
     if (key === 'mine') K.mineCollect();
     K.pay(c);
     cave().lv[key] = lv + 1;
@@ -36,21 +55,26 @@ XX.sys.cave = (function () {
   };
   K.maxTier = function (key) { return D.tierByLv(K.lv(key)); };
 
-  /* ---------- 阵法 ---------- */
+  /* ---------- 阵法:需阵图;布置即 1 级,上限 10 级(★) ---------- */
   K.arrayDef = function (id) { return D.arrays.filter(function (a) { return a.id === id; })[0]; };
   K.arrayCost = function (id) {
     return K.costAt(K.arrayDef(id), P().arrayLv(id) + 1, P().tpl().bonus.arrayDiscount || 0);
   };
+  K.arrayValue = function (a, lv) {
+    var m = D.lvMul(lv || 1) * inv().bpMul(a.id), o = {};
+    Object.keys(a.effects).forEach(function (k) { o[k] = a.effects[k] * m; });
+    return o;
+  };
   K.upgradeArray = function (id) {
     var a = K.arrayDef(id), lv = P().arrayLv(id);
-    if (lv >= C.caveMaxLv) return { ok: false, msg: '阵法已臻圆满' };
+    if (!inv().bpLv(id)) return { ok: false, msg: '尚未获得【' + a.name + '】阵图' };
+    if (lv >= C.maxLv) return { ok: false, msg: '阵法已臻圆满(★)' };
     var c = K.arrayCost(id);
-    if (st().stone < c.stone) return { ok: false, msg: '灵石不足' };
-    if (st().jade < c.jade) return { ok: false, msg: '仙玉不足' };
+    if (!K.canPay(c)) return { ok: false, msg: K.lackText(c) };
     K.pay(c);
     cave().arrays[id] = lv + 1;
     XX.bus.emit('stats');
-    return { ok: true, msg: a.name + ' 提升至 ' + (lv + 1) + ' 级' };
+    return { ok: true, msg: lv ? a.name + ' 提升至 ' + U.lvText(lv + 1) : '布置' + a.name + '成功' };
   };
 
   /* ---------- 炼丹 / 炼器(共用) ---------- */
@@ -61,8 +85,8 @@ XX.sys.cave = (function () {
     var bonus = s.comprehension * 0.005 + (kind === 'alchemy' ? (b.alchemyRate || 0) + K.lv('alchemy') * 0.01 : 0);
     return U.clamp(r.rate + bonus, 0.05, 0.99);
   };
-  K.known = function (kind, r) { return kind === 'alchemy' ? (!r.needRecipe || !!(st().recipes || {})[r.id]) : !!st().blueprints[r.id]; };
-  K.needLv = function (kind, r) { return kind === 'alchemy' ? D.lvForTier(r.q) : D.lvForTier(r.tier); };
+  K.known = function (kind, r) { return inv().bpLv(r.id) > 0; };
+  K.needLv = function (kind, r) { return D.lvForTier(r.q); };
   K.lvOk = function (kind, r) { return K.lv(kind) >= K.needLv(kind, r); };
   K.batchTime = function (r, n) { return r.time * (1 + (n - 1) * D.batchTimeFactor); };
   K.maxBatch = function (kind, r) {
@@ -73,7 +97,7 @@ XX.sys.cave = (function () {
     var r = K.recipe(kind, rid), F = D.facilities[kind];
     n = kind === 'alchemy' ? Math.max(1, Math.floor(n || 1)) : 1;
     if (cave()[kind]) return { ok: false, msg: '炉火未熄,请先收取' };
-    if (!K.known(kind, r)) return { ok: false, msg: kind === 'alchemy' ? '尚未掌握丹方' : '尚未掌握图纸' };
+    if (!K.known(kind, r)) return { ok: false, msg: kind === 'alchemy' ? '尚未获得丹方' : '尚未获得器图' };
     if (!K.lvOk(kind, r)) return { ok: false, msg: F.name + '需达到 ' + K.needLv(kind, r) + ' 级' };
     if (st().realm < r.reqRealm) return { ok: false, msg: '境界不足' };
     if (st().stone < r.stone * n) return { ok: false, msg: '灵石不足' };
@@ -92,10 +116,6 @@ XX.sys.cave = (function () {
     var now = Date.now();
     return { job: j, recipe: r, ratio: now >= j.end ? 1 : U.clamp((now - j.start) / (j.end - j.start), 0, 1), left: (j.end - now) / 1000 };
   };
-  K.goldChance = function () {
-    var s = P().stats();
-    return U.clamp(D.forgeGoldChance + K.lv('forge') * 0.02 + s.comprehension * 0.005 + s.luck * 0.003, 0, 0.6);
-  };
   K.collectCraft = function (kind) {
     var p = K.craftProgress(kind);
     if (!p || p.ratio < 1) return { ok: false, msg: '尚未完成' };
@@ -108,21 +128,21 @@ XX.sys.cave = (function () {
         XX.store.addLog('炼器失败,' + r.name + '器胚碎裂。');
         return { ok: false, fail: true, msg: '器胚碎裂!' + r.name + '炼制失败' };
       }
-      var eq = inv().makeEquip(outId, Math.random() < K.goldChance() ? 4 : 3, r.lv);
+      var eq = inv().makeEquip(outId, outDef.q, r.pw, inv().bpMul(r.id));
       inv().addInstance(eq);
-      var txt = C.qualities[eq.q].name + '·' + eq.name;
-      XX.store.addLog('神兵出炉:获得特殊法宝 ' + txt + '。');
-      return { ok: true, msg: '炼制成功!获得 ' + txt, eq: eq };
+      XX.store.addLog('神兵出炉:获得法宝【' + eq.name + '】。');
+      return { ok: true, msg: '炼制成功!获得 ' + eq.name, eq: eq };
     }
     var okCount = 0, total = 0;
     for (var i = 0; i < n; i++) if (Math.random() <= rate) { okCount++; total += U.randInt(r.out[1], r.out[2]); }
-    if (total > 0 && !inv().canAdd(outId, total)) return { ok: false, msg: '储物袋空间不足,请先整理' };
+    var g = inv().bpLv(r.id) || 1;
+    if (total > 0 && !inv().canAdd(outId, total, g)) return { ok: false, msg: '储物袋空间不足,请先整理' };
     cave()[kind] = null;
     if (!okCount) {
       XX.store.addLog('炼丹失败,' + r.name + '尽化飞灰。');
       return { ok: false, fail: true, msg: '炸炉了!' + r.name + '炼制失败' };
     }
-    inv().add(outId, total);
+    inv().add(outId, total, false, { g: g });
     var msg = '成丹 ' + okCount + '/' + n + ' 炉,获得 ' + outDef.name + ' ×' + total;
     XX.store.addLog('开炉成丹:' + msg + '。');
     return { ok: true, msg: msg };
@@ -132,7 +152,7 @@ XX.sys.cave = (function () {
   K.plots = function () { return Math.min(D.field.maxPlots, D.field.basePlots + K.lv('field')); };
   K.crop = function (seed) { return D.field.crops.filter(function (c) { return c.seed === seed; })[0]; };
   K.cropOk = function (c) { return K.lv('field') >= D.lvForTier(c.q); };
-  K.growTime = function (crop) { return crop.time / (1 + P().arrayVal('yuanling') + K.lv('field') * D.field.speedPerLv); };
+  K.growTime = function (crop) { return crop.time / (1 + P().arrayEff('fieldSpeed') + K.lv('field') * D.field.speedPerLv); };
   K.plant = function (i, seed) {
     var f = cave().field;
     if (i >= K.plots()) return { ok: false, msg: '该地块尚未开垦' };
@@ -170,9 +190,49 @@ XX.sys.cave = (function () {
     }
     return { got: all, full: full };
   };
+  /* 播种顺序(最多 3 种,按先后自动播种) */
+  K.queue = function () { var f = cave().field; f.queue = f.queue || [null, null, null]; return f.queue; };
+  K.nextSeed = function () {
+    var q = K.queue();
+    for (var i = 0; i < q.length; i++) {
+      var c = q[i] && K.crop(q[i]);
+      if (c && K.cropOk(c) && inv().count(q[i]) > 0) return q[i];
+    }
+    return null;
+  };
+  /* 自动收获 + 按顺序自动播种(含离线补算);返回本次收获列表 */
+  K.autoField = function (now) {
+    var f = cave().field, got = {}, full = false;
+    now = now || Date.now();
+    for (var i = 0; i < K.plots(); i++) {
+      for (var guard = 0; guard < 300; guard++) {
+        var p = f.plots[i];
+        if (p && p.end <= now) {
+          var c = K.crop(p.seed);
+          var n = U.randInt(c.yield[0], c.yield[1]) + (P().tpl().bonus.fieldYield || 0);
+          if (!inv().canAdd(c.out, n)) { full = true; break; }
+          inv().add(c.out, n, true);
+          got[c.out] = (got[c.out] || 0) + n;
+          if (U.chance(D.field.seedReturnChance)) inv().add(p.seed, 1, true);
+          var endAt = p.end;
+          f.plots[i] = null;
+          var sd = K.nextSeed();
+          if (sd) { inv().remove(sd, 1); f.plots[i] = { seed: sd, start: endAt, end: endAt + K.growTime(K.crop(sd)) * 1000 }; continue; }
+          break;
+        }
+        if (!p) {
+          var sd2 = K.nextSeed();
+          if (sd2) { inv().remove(sd2, 1); f.plots[i] = { seed: sd2, start: now, end: now + K.growTime(K.crop(sd2)) * 1000 }; }
+        }
+        break;
+      }
+      if (full) break;
+    }
+    return { got: Object.keys(got).map(function (k) { return [k, got[k]]; }), full: full };
+  };
 
   /* ---------- 灵矿 ---------- */
-  K.minePerMin = function () { return D.mine.stonePerMin[K.lv('mine')] * (1 + P().arrayVal('jubao')); };
+  K.minePerMin = function () { return D.mine.stonePerMin[K.lv('mine')] * (1 + P().arrayEff('mineBonus')); };
   K.minePending = function () {
     var m = cave().mine;
     var mins = Math.min(D.mine.capMinutes, (Date.now() - m.last) / 60000);
@@ -185,7 +245,7 @@ XX.sys.cave = (function () {
     var ores = [];
     D.mine.ores.forEach(function (o) {
       if (lv < o.minLv) return;
-      var e = o.perMin * p.mins * (1 + P().arrayVal('jubao') * 0.5);
+      var e = o.perMin * p.mins * (1 + P().arrayEff('mineBonus') * 0.5);
       var n = Math.floor(e) + (U.chance(e - Math.floor(e)) ? 1 : 0);
       if (n > 0) ores.push([o.id, n]);
     });

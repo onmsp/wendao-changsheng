@@ -3,7 +3,7 @@ window.XX = window.XX || { data: {}, sys: {}, pages: {}, screens: {} };
 
 XX.config = {
   gameName: '问道长生',
-  version: '0.1.3',
+  version: '0.1.4',
   saveKey: 'wendao_changsheng_save',
   tickMs: 3000,            // 修炼结算周期:每 3 秒
   bagCapacity: 50,         // 初始背包格子
@@ -16,7 +16,7 @@ XX.config = {
     stone: 0,              // 初始灵石
     jade: 0,               // 初始仙玉
     root: 'r5',            // 初始灵根:五色灵根
-    items: [['eq_changjian', 1, { q: 0, lv: 0 }]]   // 初始物品:一把凡品法宝·长剑
+    items: [['eq_changjian', 1, { q: 0 }]]   // 初始物品:一把白色法宝·长剑
   },
   treasureSlots: 4,        // 可同时佩戴的法宝数量(显示在人物四角)
   battleSpeed: 1,          // 战斗演出默认倍速
@@ -24,28 +24,52 @@ XX.config = {
   secretMaxTimes: 10,      // 秘境次数上限
   secretRegenMinutes: 60,  // 每多少分钟恢复 1 次秘境次数
   breakRateBonus: { minor: 0.02, major: 0.05 },   // 每次小/大境界突破永久提升的修炼速度
-  /* 功法/神通栏位:按大境界序号(0炼气 1筑基 2金丹 3元婴 … 8渡劫) */
+  /* 功法/技能栏位:按大境界序号(0炼气 1筑基 2金丹 3元婴 … 8渡劫) */
   techniqueSlots: [
     { maxMajor: 2, gongfa: 1, shentong: 2 },   // 元婴以下
     { maxMajor: 7, gongfa: 1, shentong: 3 },   // 渡劫以下
     { maxMajor: 8, gongfa: 1, shentong: 4 }    // 渡劫期
   ],
-  /* 法宝品阶:白 绿 蓝 紫 金 */
+  /* 品质:白 绿 蓝 紫 金(界面只用颜色表示,不显示文字) */
   qualities: [
-    { name: '凡品', color: '#e2ddd2', short: '白' },
-    { name: '灵品', color: '#6fd28a', short: '绿' },
-    { name: '玄品', color: '#5fb4ff', short: '蓝' },
-    { name: '地品', color: '#c58cff', short: '紫' },
-    { name: '天品', color: '#ffc83d', short: '金' }
+    { name: '白', color: '#e2ddd2' },
+    { name: '绿', color: '#6fd28a' },
+    { name: '蓝', color: '#5fb4ff' },
+    { name: '紫', color: '#c58cff' },
+    { name: '金', color: '#ffc83d' }
   ],
   /* 法宝掉落概率(每场胜利/每次通关) */
   treasureDrop: {
-    dungeon: [0.10, 0.05, 0.02, 0.005, 0],   // 历练副本:白 绿 蓝 紫 金
-    secret: [0, 0, 0, 0.20, 0.10]            // 秘境:紫 20% 金 10%
+    dungeon: [0.10, 0.05, 0.02, 0.005, 0],   // 历练副本:白 绿 蓝 紫 金(副本不出金色)
+    secret: [0, 0, 0, 0.20, 0.10]            // 秘境:只出紫/金
   },
-  affixCount: [0, 0, 0, 1, 2],               // 各品阶附带特殊属性条数
-  secretTierDropMul: [1, 0.7, 0.45, 0.25, 0.1], // 秘境物品掉率按品阶衰减(白 绿 蓝 紫 金)
-  gongfaBaseRate: [0.05, 0.10, 0.15, 0.22, 0.30], // 功法固定基础属性:修炼速度(按品阶)
-  shentongMaxLv: 5,                          // 神通最高等级(重复参悟玉简升级,每级效果 +10%)
-  caveMaxLv: 10                              // 洞府设施/阵法等级上限
+  /* 品质与掉落:所有掉落物的实际概率 = 填写概率 × tierDropMul[品质](品质越高按比例降低) */
+  tierDropMul: [1, 0.5, 0.25, 0.125, 0.0625],
+  dungeonMaxQ: 3,          // 副本掉落最高品质(紫),金色不会出现在副本
+  secretMinQ: 3,           // 秘境掉落最低品质(紫),且不掉落特殊道具
+
+  /* 效果条数:白/绿/蓝 1 条,紫/金 2 条(法宝、阵法);功法额外属性:白~蓝 1 条,紫 2 条,金 3 条 */
+  affixCount: [1, 1, 1, 2, 2],
+  gongfaExtraCount: [1, 1, 1, 2, 3],
+  gongfaBaseRate: [0.05, 0.10, 0.15, 0.22, 0.30], // 功法固定基础属性:修炼速度
+
+  /* 升级通用规则(功法、技能、法宝、阵法):初始 1 级,上限 10 级(10 级 = 1 颗星),每升 1 级基础属性 +20% */
+  maxLv: 10,
+  lvGrow: 0.2,
+  /* 功法/技能碎片:重复获得自动转化为 5 个碎片;升级所需碎片(1→2, 2→3, …, 9→10) */
+  fragPerDup: 5,
+  fragCost: [10, 30, 50, 100, 150, 200, 250, 300, 350],
+  /* 技能:被动概率触发,默认 30%,每升 1 级 +1%,超过 100% 的部分转为技能增伤;每升 1 级灵力消耗 +30% */
+  skillChance: 0.30,
+  skillChancePerLv: 0.01,
+  skillMpGrow: 0.3,
+
+  /* 图纸(丹方/器图/阵图):5 个等级,重复获得 +5 经验;升到下一级所需经验;成品效果倍率 */
+  bpExpPerDup: 5,
+  bpExpNeed: [50, 150, 450, 1350],
+  bpEffect: [1, 1.2, 1.4, 1.7, 2.0],
+  /* 洗灵液:每次提升灵根转化度 5%,满 100% 升一品;图纸等级决定可达最高灵根(1级→四色 … 5级→天灵根) */
+  rootProgPerUse: 0.05,
+
+  caveMaxLv: 10            // 洞府设施等级上限
 };

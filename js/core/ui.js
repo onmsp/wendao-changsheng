@@ -84,7 +84,7 @@ XX.ui = (function () {
   ui.itemInfo = function (id, extraHtml) {
     var it = XX.data.items[id];
     var html = '<div class="item-detail">' + U.itemIcon(id, 'lg') + '<div><div class="item-detail-name">' + U.itemName(id) + '</div>' +
-      '<div class="muted">' + XX.data.itemTypes[it.type].name + ' · ' + XX.config.qualities[it.q || 0].name + '</div></div></div>' +
+      '<div class="muted">' + (it.bpRef ? '图纸' : it.scroll ? (it.scroll === 'gongfa' ? '功法玉简' : '技能玉简') : XX.data.itemTypes[it.type].name) + '</div></div></div>' +
       '<p class="item-desc">' + it.desc + '</p>' + (extraHtml || '');
     return html;
   };
@@ -135,12 +135,12 @@ XX.ui = (function () {
 
   /* 法宝详情 HTML(含等级、品阶、属性、特殊属性) */
   ui.equipDetail = function (e) {
-    var D = XX.data, it = D.items[e.id], q = XX.config.qualities[e.q];
+    var D = XX.data, it = D.items[e.id], q = XX.config.qualities[e.q], st = XX.sys.inv.eqStats(e);
     var NAMES = { hp: '气血', mp: '灵力', atk: '攻击', def: '防御', spd: '身法', sense: '神识', crit: '暴击率', critDmg: '暴击伤害', dodge: '闪避率' };
-    return '<div class="item-detail">' + U.itemIcon(e.id, 'lg', e.q) + '<div><div class="item-detail-name" style="color:' + q.color + '">' + U.eqName(e) + '</div>' +
-      '<div class="muted">' + (it.special ? '特殊法宝' : '法宝') + ' · ' + q.name + '(' + q.short + ')· ' + (e.lv || 0) + ' 级</div></div></div>' +
+    return '<div class="item-detail">' + U.itemIcon(e.id, 'lg', e.q, { lv: e.lv }) + '<div><div class="item-detail-name" style="color:' + q.color + '">' + U.eqName(e) + '</div>' +
+      '<div class="muted">' + (it.forged ? '炼器法宝' : '法宝') + ' · 强化 ' + U.lvText(e.lv) + (e.bpm > 1 ? ' · 器图加成 ' + U.pct(e.bpm, 0) : '') + '</div></div></div>' +
       '<p class="item-desc">' + it.desc + '</p><div class="stat-list">' +
-      Object.keys(e.stats).map(function (k) { var v = e.stats[k]; return '<div><span>' + NAMES[k] + '</span><b>+' + (v < 1 ? U.pct(v) : U.num(v)) + '</b></div>'; }).join('') + '</div>' +
+      Object.keys(st).map(function (k) { var v = st[k]; return '<div><span>' + NAMES[k] + '</span><b>+' + (v < 1 ? U.pct(v) : U.num(v)) + '</b></div>'; }).join('') + '</div>' +
       (e.affixes && e.affixes.length ? '<div class="affix-list">' + e.affixes.map(function (a) {
         return '<div class="affix q' + e.q + '">◆ ' + XX.sys.inv.affixText(a) + '</div>';
       }).join('') + '</div>' : '');

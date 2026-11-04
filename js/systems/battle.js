@@ -1,6 +1,6 @@
 /*
  * 战斗模拟:先完整推演,再交给 battle-view.js 逐步播放
- * 事件 ev:{actor:'p'|'m', skill:神通id|null, beast:妖兽大招, hits:[{dmg,crit,dodge}], heal, reflect, pHp, mHp, pMp}
+ * 事件 ev:{actor:'p'|'m', skill:技能id|null, beast:妖兽大招, hits:[{dmg,crit,dodge}], heal, reflect, pHp, mHp, pMp}
  */
 XX.sys.battle = (function () {
   var B = {}, D = XX.data, U = XX.util, C = XX.config;
@@ -13,7 +13,7 @@ XX.sys.battle = (function () {
       atk: s.atk, def: s.def, spd: s.spd, sense: s.sense, crit: s.crit, critDmg: s.critDmg, dodge: s.dodge,
       lifesteal: af.lifesteal || 0, thorns: af.thorns || 0, double: af.double || 0, pierce: af.pierce || 0, mpRegen: 0.08 + (af.mpRegen || 0),
       shield: 0,
-      skills: P.activeShentong().map(function (id) { return { id: id, cd: 0, lv: P.stLv(id) }; })
+      skills: P.activeShentong().map(function (id) { return { id: id, lv: P.stLv(id) }; })
     };
   };
 
@@ -45,36 +45,35 @@ XX.sys.battle = (function () {
     return { dmg: Math.max(1, Math.round(dmg)), crit: crit };
   }
 
-  /* 玩家选择行动:按栏位顺序找第一个可用神通 */
-  function choose(p, m) {
+  /* 玩家技能:按栏位顺序逐个判定触发概率;灵力不足或条件不满足则跳过 */
+  function choose(p) {
     for (var i = 0; i < p.skills.length; i++) {
-      var sk = p.skills[i], def = D.shentong[sk.id];
-      if (sk.cd > 0 || p.mp < Math.round(p.maxMp * def.cost)) continue;
+      var sk = p.skills[i], def = D.shentongAt(sk.id, sk.lv);
+      if (p.mp < def.mpCost) continue;
       if (def.type === 'heal' && p.hp > p.maxHp * 0.55) continue;
       if (def.type === 'shield' && (p.hp > p.maxHp * 0.7 || p.shield > p.maxHp * 0.1)) continue;
       if (def.type === 'buff' && p.atkUp && p.atkUp.t > 0) continue;
-      return sk;
+      if (Math.random() < def.chance) return sk;
     }
     return null;
   }
 
   /*
    * 行动事件 ev:
-   *   actor 'p'|'m';skill 神通id;lv 神通等级;hits[{dmg,crit,dodge}];heal;shield;status[] 新附加状态文字
+   *   actor 'p'|'m';skill 技能id;lv 技能等级;hits[{dmg,crit,dodge}];heal;shield;status[] 新附加状态文字
    *   (妖兽)dot 灼烧伤害;stunned 眩晕跳过;absorb 护盾抵挡;reflect 反震;beast 妖力爆发
    */
   function act(a, d) {
     var ev = { actor: a.side, hits: [], heal: 0, reflect: 0, status: [] };
     var total = 0;
     if (a.side === 'p') {
-      a.skills.forEach(function (s) { if (s.cd > 0) s.cd--; });
       if (a.atkUp && a.atkUp.t > 0) a.atkUp.t--;
-      var sk = choose(a, d), def = sk && D.shentongAt(sk.id, sk.lv);
+      var sk = choose(a), def = sk && D.shentongAt(sk.id, sk.lv);
       if (sk) {
-        ev.skill = sk.id; ev.lv = sk.lv; sk.cd = def.cd; a.mp -= Math.round(a.maxMp * def.cost);
+        ev.skill = sk.id; ev.lv = sk.lv; a.mp -= def.mpCost;
         if (def.mult) {
           var n = def.type === 'multi' ? def.hits : 1;
-          for (var i = 0; i < n; i++) { var h = hit(a, d, def.mult); ev.hits.push(h); total += h.dmg; }
+          for (var i = 0; i < n; i++) { var h = hit(a, d, def.mult * (1 + def.overDmg)); ev.hits.push(h); total += h.dmg; }
         }
         var landed = ev.hits.some(function (h) { return !h.dodge; });
         if (def.heal) ev.heal += Math.round(a.maxHp * def.heal);
@@ -125,14 +124,21 @@ XX.sys.battle = (function () {
     return { win: m.hp <= 0 && p.hp > 0, events: events };
   };
 
-  /* 实际掉率:秘境按物品品阶衰减 */
-  B.dropChance = function (d, isSecret) {
+  /* 实际掉率 = 基础概率 × 品质系数(品质越高按比例降低);副本不出金色,秘境只出紫/金且不出特殊道具 */
+  B.dropAllowed = function (d, isSecret) {
     var it = D.items[d[0]];
-    return d[1] * (isSecret ? C.secretTierDropMul[(it && it.q) || 0] : 1);
+    if (!it || it.noDrop) return false;
+    var q = it.q || 0;
+    if (isSecret) return q >= C.secretMinQ && !(it.type === 'special' && !it.scroll && !it.bpRef);
+    return q <= C.dungeonMaxQ;
+  };
+  B.dropChance = function (d, isSecret) {
+    if (!B.dropAllowed(d, isSecret)) return 0;
+    return d[1] * C.tierDropMul[D.items[d[0]].q || 0];
   };
   B.rollDrops = function (drops, luck, isSecret) {
     var res = [];
-    drops.forEach(function (d) { if (D.items[d[0]] && Math.random() < B.dropChance(d, isSecret) * (1 + luck / 100)) res.push([d[0], U.randInt(d[2], d[3])]); });
+    drops.forEach(function (d) { if (Math.random() < B.dropChance(d, isSecret) * (1 + luck / 100)) res.push([d[0], U.randInt(d[2], d[3])]); });
     return res;
   };
 
@@ -141,7 +147,7 @@ XX.sys.battle = (function () {
     var r = Math.random(), acc = 0;
     for (var q = 4; q >= 0; q--) {
       acc += table[q] || 0;
-      if (r < acc) return XX.sys.inv.makeEquip(U.pick(D.treasureBases), q, lv);
+      if (r < acc) return XX.sys.inv.makeEquip(U.pick(D.treasureBases), q, lv, 1);
     }
     return null;
   };
@@ -196,7 +202,6 @@ XX.sys.battle = (function () {
       var isBoss = i === sec.floors.length - 1;
       var m = B.monsterFighter(sec.floors[i], sec.power + i * 0.5, isBoss ? sec.bossMul : 1);
       var startHp = p.hp, startMp = p.mp;
-      p.skills.forEach(function (s) { s.cd = 0; });
       p.atkUp = null;
       var r = B.simulate(p, m);
       fights.push({ floor: i + 1, boss: isBoss, monster: B.monsterInfo(m), pStart: startHp, pMp: startMp, pMax: p.maxHp, pMaxMp: p.maxMp, events: r.events, win: r.win });

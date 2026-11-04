@@ -2,7 +2,7 @@
  * 战斗演出(类 RPG 侧视战斗):
  *   角色动作帧 assets/char/{id}_bidle 待机 / _bwind 蓄势 / _batk 出招 / _bcast 掐诀 / _bhurt 受击(均面向右侧怪物)
  *   特效精灵 assets/vfx/slash 剑气 / circle 法阵 / burst 爆裂 / claw 爪痕(青色基调,运行时按颜色做色相旋转)
- *   普攻演出按角色 atkFx 区分;神通演出按 shentong.fx 区分
+ *   普攻演出按角色 atkFx 区分;技能演出按 shentong.fx 区分
  */
 XX.battleView = (function () {
   var U = XX.util, D = XX.data, V = {}, timers = [], el = {}, frames = {}, color = '#9fe0ff', atkFx = 'slash';
@@ -249,13 +249,13 @@ XX.battleView = (function () {
     later(done, hitAt + 700 + (ev.hits.length - 1) * 120);
   }
 
-  /* ---------- 玩家神通:掐诀 → 法阵 → 释放 ---------- */
+  /* ---------- 玩家技能:掐诀 → 法阵 → 释放 ---------- */
   function playerSkill(ev, onImpact, done) {
     var def = D.shentong[ev.skill], fx = def.fx, col = fx === 'sword' ? color : (FXC[fx] || color), selfCast = ['heal', 'buff', 'shield'].indexOf(def.type) >= 0;
     var me = el.me, c0 = center(el.pimg), foe = center(el.mimg), hand = { x: c0.x + c0.w * 0.2, y: c0.y - c0.h * 0.12 };
     frame('bcast');
     el.dim.classList.add('on');
-    skillText(def.name + (ev.lv > 1 ? ' ' + ['', '', '贰', '叁', '肆', '伍'][ev.lv] + '重' : ''), 'me');
+    skillText(def.name + (ev.lv > 1 ? ' ' + U.lvText(ev.lv) : ''), 'me');
     sprite('circle', c0.x, c0.bottom - c0.h * 0.06, c0.w * 1.2, [
       { opacity: 0, transform: 'translate(-50%,-50%) scale(.2,.07) rotate(0deg)' }, { opacity: 1, offset: .2, transform: 'translate(-50%,-50%) scale(1,.32) rotate(70deg)' },
       { opacity: 1, offset: .8, transform: 'translate(-50%,-50%) scale(1.05,.34) rotate(250deg)' }, { opacity: 0, transform: 'translate(-50%,-50%) scale(1.2,.4) rotate(320deg)' }

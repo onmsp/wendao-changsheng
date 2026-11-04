@@ -5,7 +5,7 @@
  * icon:assets 下图片路径(不含扩展名);hue:色相旋转;badge:角标
  * q:品阶 0白 1绿 2蓝 3紫 4金;price:出售价格(灵石)
  * use:使用效果(由 systems/inventory.js 解释)
- * 功法/神通玉简由 skills.js 自动生成,无需在此填写
+ * 功法/技能玉简由 skills.js 自动生成,无需在此填写
  */
 XX.data.itemTypes = {
   material: { name: '材料', stack: true },
@@ -63,7 +63,6 @@ XX.data.items = {
   pill_ningyuan: { name: '凝元丹', type: 'pill', icon: 'item/pill_red', hue: 280, q: 3, price: 600, desc: '服用后立即获得 6000 点修为。', use: { kind: 'exp', amount: 6000 } },
   pill_wudao: { name: '悟道丹', type: 'pill', icon: 'item/pill_gold', hue: 120, q: 3, price: 800, desc: '特殊丹药。明心见性,永久提升悟性 1 点(累计上限 20)。', use: { kind: 'perm', key: 'comprehension', add: 1, cap: 20 } },
   pill_fuyuan: { name: '福缘丹', type: 'pill', icon: 'item/pill_gold', hue: 200, q: 3, price: 800, desc: '特殊丹药。永久提升气运 1 点(累计上限 10),气运影响突破与掉落。', use: { kind: 'perm', key: 'luck', add: 1, cap: 10 } },
-  pill_xisui: { name: '洗髓丹', type: 'pill', icon: 'item/pill_gold', hue: 170, q: 4, price: 3000, desc: '特殊丹药。洗筋伐髓,灵根提升一阶(五色→四色→三色→两色→单色)。', use: { kind: 'root' } },
   pill_zhuji: { name: '筑基丹', type: 'pill', icon: 'item/pill_gold', q: 1, price: 200, desc: '突破至筑基期所必需。突破时自动服用。', use: { kind: 'break' } },
   pill_ningjin: { name: '凝金丹', type: 'pill', icon: 'item/pill_gold', hue: 25, q: 2, price: 600, desc: '凝结金丹所必需。突破时自动服用。', use: { kind: 'break' } },
   pill_huaying: { name: '化婴丹', type: 'pill', icon: 'item/pill_gold', hue: 80, q: 3, price: 1500, desc: '碎丹成婴所必需。突破时自动服用。', use: { kind: 'break' } },
@@ -77,9 +76,11 @@ XX.data.items = {
   sp_pouch: { name: '储物袋', type: 'special', icon: 'item/pouch', q: 2, price: 100, desc: '使用后背包容量永久 +10 格。扩展上限 200 格,元婴之后每个大境界上限 +50。', use: { kind: 'bag', add: 10 } },
   sp_talisman: { name: '破境符', type: 'special', icon: 'item/talisman', q: 1, price: 150, desc: '使用后,下一次大境界突破成功率 +15%(可叠加至 45%)。', use: { kind: 'buff', key: 'breakBonus', add: 0.15, cap: 0.45 } },
   sp_stonebag: { name: '灵石袋', type: 'special', icon: 'item/pouch', hue: 180, q: 1, price: 50, desc: '打开可获得 1000 × (大境界+1) 灵石。', use: { kind: 'stone', base: 1000 } },
-  sp_xiling: { name: '洗灵液', type: 'special', icon: 'item/gourd', q: 4, price: 1000, desc: '洗筋伐髓,重塑灵根。使用后灵根提升一阶(五色→四色→三色→两色→单色)。', use: { kind: 'root' } },
+  /* 洗灵液:只能炼制(需丹方),图纸等级决定可达最高灵根 */
+  sp_xiling: { name: '洗灵液', type: 'pill', special: true, noDrop: true, icon: 'item/gourd', q: 3, price: 1000,
+    desc: '特殊道具,只能炼制。每次服用灵根转化度 +5%,满 100% 灵根提升一品。丹方等级决定可达到的最高灵根:1 级四色、2 级三色、3 级两色、4 级单色、5 级天灵根。', use: { kind: 'rootProg' } },
 
-  /* ---------- 普通法宝(掉落时按地图强度生成等级与品阶) ---------- */
+  /* ---------- 普通法宝(掉落时按地图强度 pw 生成数值) ---------- */
   eq_changjian: { name: '长剑', type: 'equip', icon: 'item/sword', q: 0, price: 20, desc: '寻常修士的入门飞剑。', stats: { atk: 12, crit: 0.01 } },
   eq_daopao: { name: '道袍', type: 'equip', icon: 'item/robe', q: 0, price: 20, desc: '绣有云纹的法衣,可御刀兵。', stats: { hp: 90, def: 8 } },
   eq_yupei: { name: '玉佩', type: 'equip', icon: 'item/pendant', q: 0, price: 20, desc: '温养神识的玉佩。', stats: { mp: 40, sense: 6, dodge: 0.01 } },
@@ -91,9 +92,10 @@ XX.data.items = {
 XX.data.treasureBases = ['eq_changjian', 'eq_daopao', 'eq_yupei', 'eq_lingzhuo', 'eq_tongling'];
 
 /*
- * 法宝特殊属性(紫色 1 条、金色 2 条)
- * kind:stat 直接加属性;battle 战斗中生效
+ * 法宝效果(词条):白/绿/蓝 1 条,紫/金 2 条(config.affixCount)
+ * kind:stat 直接加属性;battle 战斗中生效;range 为紫色品质的基准范围,其他品质按 affixQMul 缩放
  */
+XX.data.affixQMul = [0.4, 0.55, 0.75, 1, 1.3];
 XX.data.affixes = {
   lifesteal: { name: '吸血', kind: 'battle', range: [0.05, 0.12], pct: true, desc: '造成伤害的 {v} 转化为气血' },
   thorns: { name: '反震', kind: 'battle', range: [0.08, 0.20], pct: true, desc: '受到伤害时反弹 {v}' },
@@ -110,43 +112,28 @@ XX.data.affixes = {
 };
 
 /*
- * 特殊法宝:只能通过「炼器 + 图纸」获得,自带固定特殊属性
- * fixed:固定词条;金品会再随机 1 条
+ * 炼器法宝:只能通过「炼器 + 器图」获得,品质固定(白~金),效果固定(白~蓝 1 条,紫/金 2 条)
+ * 器图等级决定成品数值倍率(config.bpEffect)
  */
-XX.data.specialTreasures = {
-  eq_jianxia: { name: '青冥剑匣', icon: 'item/swordcase', price: 800, desc: '匣中藏剑三千,一念出鞘。', stats: { atk: 30, crit: 0.03 }, fixed: 'double' },
-  eq_qiankun: { name: '乾坤镯', icon: 'item/bracelet', hue: 40, price: 800, desc: '可收纳乾坤,护主周全。', stats: { hp: 260, def: 22 }, fixed: 'thorns' },
-  eq_zhenhun: { name: '镇魂钟', icon: 'item/bell', hue: 200, price: 800, desc: '钟声一响,群邪辟易。', stats: { def: 18, sense: 24, mp: 60 }, fixed: 'mpRegen' },
-  eq_zhaohun: { name: '招魂幡', icon: 'item/banner', hue: 150, price: 1200, desc: '幡动则百魂随行,吞噬生机。', stats: { atk: 26, hp: 120 }, fixed: 'lifesteal' },
-  eq_kunlun: { name: '昆仑镜', icon: 'item/mirror', price: 1200, desc: '照见万物本源,洞穿虚实。', stats: { atk: 22, sense: 30, crit: 0.04 }, fixed: 'pierce' },
-  eq_fantian: { name: '翻天印', icon: 'item/seal', price: 2000, desc: '一印落下,山岳崩摧。', stats: { atk: 48, critDmg: 0.15 }, fixed: 'critDmg' },
-  eq_linglong: { name: '玲珑宝塔', icon: 'item/pagoda', price: 2000, desc: '塔镇八方,聚天地灵气于一身。', stats: { hp: 200, def: 20, mp: 80 }, fixed: 'rate' },
-  eq_zijin: { name: '紫金葫芦', icon: 'item/gourd', hue: 60, price: 2000, desc: '葫中自有洞天,福缘深厚。', stats: { mp: 160, sense: 20, dodge: 0.03 }, fixed: 'luck' }
+XX.data.forgeTreasures = {
+  eq_qingfeng: { name: '青锋剑', q: 0, icon: 'item/sword', hue: 160, desc: '剑气清冽的入门飞剑。', stats: { atk: 16, crit: 0.01 }, effects: ['crit'] },
+  eq_yunwen: { name: '云纹宝衣', q: 0, icon: 'item/robe', hue: 40, desc: '织入云纹禁制的护身法衣。', stats: { hp: 110, def: 10 }, effects: ['hpPct'] },
+  eq_shehun: { name: '摄魂铃', q: 1, icon: 'item/bell', hue: 300, desc: '铃声摄人心魄。', stats: { atk: 20, sense: 14 }, effects: ['pierce'] },
+  eq_qiankun: { name: '乾坤镯', q: 1, icon: 'item/bracelet', hue: 40, desc: '可收纳乾坤,护主周全。', stats: { hp: 200, def: 16 }, effects: ['thorns'] },
+  eq_jianxia: { name: '青冥剑匣', q: 2, icon: 'item/swordcase', desc: '匣中藏剑三千,一念出鞘。', stats: { atk: 30, crit: 0.03 }, effects: ['double'] },
+  eq_zhenhun: { name: '镇魂钟', q: 2, icon: 'item/bell', hue: 200, desc: '钟声一响,群邪辟易。', stats: { def: 22, sense: 24, mp: 60 }, effects: ['mpRegen'] },
+  eq_zhaohun: { name: '招魂幡', q: 3, icon: 'item/banner', hue: 150, desc: '幡动则百魂随行,吞噬生机。', stats: { atk: 30, hp: 150 }, effects: ['lifesteal', 'critDmg'] },
+  eq_kunlun: { name: '昆仑镜', q: 3, icon: 'item/mirror', desc: '照见万物本源,洞穿虚实。', stats: { atk: 26, sense: 32, crit: 0.04 }, effects: ['pierce', 'crit'] },
+  eq_fantian: { name: '翻天印', q: 4, icon: 'item/seal', desc: '一印落下,山岳崩摧。', stats: { atk: 52, critDmg: 0.15 }, effects: ['critDmg', 'double'] },
+  eq_linglong: { name: '玲珑宝塔', q: 4, icon: 'item/pagoda', desc: '塔镇八方,聚天地灵气于一身。', stats: { hp: 260, def: 26, mp: 90 }, effects: ['rate', 'hpPct'] },
+  eq_zijin: { name: '紫金葫芦', q: 4, icon: 'item/gourd', hue: 60, desc: '葫中自有洞天,福缘深厚。', stats: { mp: 170, sense: 24, dodge: 0.03 }, effects: ['luck', 'dodge'] }
 };
 (function () {
-  Object.keys(XX.data.specialTreasures).forEach(function (id) {
-    var t = XX.data.specialTreasures[id];
-    XX.data.items[id] = { name: t.name, type: 'equip', special: true, icon: t.icon, hue: t.hue, q: 3, price: t.price, desc: t.desc, stats: t.stats, fixed: t.fixed };
+  Object.keys(XX.data.forgeTreasures).forEach(function (id) {
+    var t = XX.data.forgeTreasures[id];
+    XX.data.items[id] = { name: t.name, type: 'equip', forged: true, icon: t.icon, hue: t.hue, q: t.q, price: 60 * Math.pow(2.5, t.q), desc: t.desc, stats: t.stats, effects: t.effects };
   });
 })();
 
-/*
- * 炼器图纸:使用后永久掌握对应器方
- */
-XX.data.blueprints = {
-  bp_jianxia: { recipe: 'f_jianxia', hue: 0, q: 2 },
-  bp_qiankun: { recipe: 'f_qiankun', hue: 40, q: 2 },
-  bp_zhenhun: { recipe: 'f_zhenhun', hue: 200, q: 2 },
-  bp_zhaohun: { recipe: 'f_zhaohun', hue: 150, q: 3 },
-  bp_kunlun: { recipe: 'f_kunlun', hue: 90, q: 3 },
-  bp_fantian: { recipe: 'f_fantian', hue: 300, q: 3 },
-  bp_linglong: { recipe: 'f_linglong', hue: 250, q: 4 },
-  bp_zijin: { recipe: 'f_zijin', hue: 60, q: 4 }
-};
-(function () {
-  Object.keys(XX.data.blueprints).forEach(function (id) {
-    var b = XX.data.blueprints[id], t = XX.data.specialTreasures['eq_' + id.slice(3)];
-    XX.data.items[id] = { name: t.name + '图纸', type: 'special', icon: 'item/blueprint', hue: b.hue, q: b.q, price: 100 * (b.q + 1), badge: '图',
-      desc: '记载【' + t.name + '】炼制之法。使用后永久掌握该器方,可在洞府·炼器中炼制。', use: { kind: 'blueprint', recipe: b.recipe } };
-  });
-})();
+/* 洞府升级材料 */
+XX.data.items.ore_iron_g = { name: '玄铁精', type: 'material', icon: 'item/iron', hue: 100, q: 1, price: 15, desc: '千锤百炼的玄铁精华,洞府 6 级以上升级与法宝高阶强化所需。' };

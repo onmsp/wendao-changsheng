@@ -46,6 +46,8 @@ XX.util = (function () {
   };
   /* 法宝实例名称(普通法宝带材质前缀) */
   U.eqName = function (sl) { return (sl && sl.name) || (XX.data.items[sl.id] || {}).name || ''; };
+  /* 等级显示:10 级为 1 颗星 */
+  U.lvText = function (lv) { return (lv || 1) >= XX.config.maxLv ? '★' : 'Lv.' + (lv || 1); };
   U.pct = function (v, d) { return (v * 100).toFixed(d == null ? 1 : d).replace(/\.0$/, '') + '%'; };
 
   U.time = function (sec) {
@@ -79,14 +81,18 @@ XX.util = (function () {
   U.img = function (path) { return 'assets/' + path + '.webp'; };
 
   /* 物品图标 HTML */
-  U.itemIcon = function (id, extraCls, qOverride) {
+  /* 物品图标:品质只用颜色(边框/光晕)表示;g 为丹药品级(图纸等级),lv 为法宝强化等级 */
+  U.itemIcon = function (id, extraCls, qOverride, extra) {
     var it = XX.data.items[id];
     if (!it) return '<div class="item-icon"></div>';
     var qi = qOverride != null ? qOverride : (it.q || 0), q = XX.config.qualities[qi];
     var style = it.hue ? ' style="filter:hue-rotate(' + it.hue + 'deg) saturate(1.1)"' : '';
+    extra = extra || {};
     return '<div class="item-icon q' + qi + ' ' + (extraCls || '') + '" style="--qc:' + q.color + '">' +
       '<img src="' + U.img(it.icon) + '"' + style + ' alt="">' +
-      (it.badge ? '<span class="badge">' + it.badge + '</span>' : '') + '</div>';
+      (it.badge ? '<span class="badge">' + it.badge + '</span>' : '') +
+      (extra.g > 1 ? '<span class="gbadge">' + '✦'.repeat(extra.g - 1) + '</span>' : '') +
+      (extra.lv ? '<span class="lvbadge">' + (extra.lv >= XX.config.maxLv ? '★' : '+' + (extra.lv - 1)) + '</span>' : '') + '</div>';
   };
   U.itemName = function (id) {
     var it = XX.data.items[id];

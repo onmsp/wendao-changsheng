@@ -20,8 +20,16 @@ XX.store = (function () {
     return Object.keys(D.shentong).filter(function (k) { return D.shentong[k].innate === charId; })[0] || null;
   };
 
+  /* 开局默认掌握的图纸(1 级) */
+  S.baseBlueprints = function () {
+    var D = XX.data, bp = {};
+    D.alchemyRecipes.concat(D.forgeRecipes).concat(D.arrays).forEach(function (r) { if (r.base) bp[r.id] = { lv: 1, exp: 0 }; });
+    return bp;
+  };
+
   S.newGame = function (opts) {
     var now = Date.now(), sig = S.innateSkill(opts.charId);
+    var stLv = {}; if (sig) stLv[sig] = 1;
     var st = {
       v: C.version,
       created: now,
@@ -31,15 +39,17 @@ XX.store = (function () {
       gender: opts.gender,
       charId: opts.charId,
       root: C.start.root,
+      rootProg: 0,
       realm: 0,
       exp: 0,
       stone: C.start.stone,
       jade: C.start.jade,
       bag: { cap: C.bagCapacity, slots: [] },
       equip: [null, null, null, null],
-      skills: { gongfa: 'yinqi', shentong: [sig, null, null, null], learnedGongfa: ['yinqi'], learnedShentong: sig ? [sig] : [], stLv: {} },
-      blueprints: {},
-      recipes: {},
+      /* 初始不装备功法与技能(已习得引气诀与本命技能,可在人物页装配) */
+      skills: { gongfa: null, shentong: [null, null, null, null], learnedGongfa: ['yinqi'], learnedShentong: sig ? [sig] : [],
+        gfLv: { yinqi: 1 }, stLv: stLv, frags: { gongfa: {}, shentong: {} } },
+      bp: S.baseBlueprints(),
       timed: {},
       perm: { hpPct: 0, comprehension: 0, rateBonus: 0 },
       buffs: { breakBonus: 0 },
@@ -48,8 +58,8 @@ XX.store = (function () {
         arrays: {},
         alchemy: null,
         forge: null,
-        field: { unlocked: XX.data.field.initPlots, plots: [] },
-        mine: { lv: 1, last: now }
+        field: { plots: [], queue: [null, null, null] },
+        mine: { last: now }
       },
       outing: { area: 'qinglan', wins: 0, losses: 0, cdUntil: 0 },
       secret: { times: C.secretMaxTimes, last: now, clears: {} },
@@ -101,7 +111,7 @@ XX.store = (function () {
       st.skills = { gongfa: 'yinqi', shentong: [sig, null, null, null], learnedGongfa: ['yinqi'], learnedShentong: sig ? [sig] : [] };
     }
     st.skills.stLv = st.skills.stLv || {};
-    if (!D.gongfa[st.skills.gongfa]) st.skills.gongfa = 'yinqi';
+
     if (!st.secret || st.secret.times == null) {
       st.secret = { times: C.secretMaxTimes, last: now, clears: (st.secret && st.secret.clears) || {} };
     }
@@ -113,7 +123,7 @@ XX.store = (function () {
     while (st.equip.length < C.treasureSlots) st.equip.push(null);
     /* 0.1.2:旧物品 id 映射、品阶收敛到 5 阶 */
     var map = { eq_qingfeng: 'eq_changjian', eq_xuantie: 'eq_changjian', eq_chiyan: 'eq_changjian', eq_yunwen: 'eq_daopao', eq_hantie: 'eq_daopao',
-      eq_xuanwu: 'eq_daopao', eq_qingyu: 'eq_yupei', eq_ziling: 'eq_yupei', eq_xingchen: 'eq_yupei', sp_jadeslip: 'gf_taixuan' };
+      eq_xuanwu: 'eq_daopao', eq_qingyu: 'eq_yupei', eq_ziling: 'eq_yupei', eq_xingchen: 'eq_yupei', sp_jadeslip: 'gf_taixuan', pill_xisui: 'sp_xiling' };
     function fix(sl) {
       if (!sl) return null;
       if (map[sl.id]) sl.id = map[sl.id];
@@ -124,6 +134,40 @@ XX.store = (function () {
     }
     st.bag.slots = st.bag.slots.map(fix).filter(function (x) { return x; });
     st.equip = st.equip.map(fix);
+    /* 0.1.4:碎片、等级、图纸、阵法、法宝强化、灵根转化度、自动灵田 */
+    var sk = st.skills;
+    sk.gfLv = sk.gfLv || {}; sk.stLv = sk.stLv || {};
+    sk.frags = sk.frags || { gongfa: {}, shentong: {} };
+    sk.learnedGongfa.forEach(function (id) { sk.gfLv[id] = sk.gfLv[id] || 1; });
+    sk.learnedShentong.forEach(function (id) { sk.stLv[id] = Math.min(C.maxLv, sk.stLv[id] || 1); });
+    sk.learnedGongfa = sk.learnedGongfa.filter(function (id) { return D.gongfa[id]; });
+    sk.learnedShentong = sk.learnedShentong.filter(function (id) { return D.shentong[id]; });
+    st.rootProg = st.rootProg || 0;
+    if (!st.bp) {
+      st.bp = S.baseBlueprints();
+      Object.keys(st.recipes || {}).concat(Object.keys(st.blueprints || {})).forEach(function (rid) { if (!st.bp[rid]) st.bp[rid] = { lv: 1, exp: 0 }; });
+      Object.keys(st.cave.arrays || {}).forEach(function (aid) { if (st.cave.arrays[aid] > 0 && !st.bp[aid]) st.bp[aid] = { lv: 1, exp: 0 }; });
+    }
+    Object.keys(st.cave.arrays || {}).forEach(function (aid) { if (!D.arrays.some(function (a) { return a.id === aid; })) delete st.cave.arrays[aid]; });
+    st.cave.field.queue = st.cave.field.queue || [null, null, null];
+    function fixEq(e) {
+      if (!e || D.items[e.id].type !== 'equip') return e;
+      if (!e.bs) { e.pw = e.pw != null ? e.pw : (e.lv || 0); e.lv = 1; e.bs = e.stats || {}; delete e.stats; }
+      return e;
+    }
+    st.equip = st.equip.map(fixEq);
+    var pend = [];
+    st.bag.slots = st.bag.slots.map(function (sl) {
+      if (!sl) return null;
+      if (sl.id === 'pill_xisui') sl = { id: 'sp_xiling', n: sl.n || 1 };
+      var it = D.items[sl.id];
+      if (!it) return null;
+      if (it.scroll || it.bpRef) { pend.push([sl.id, sl.n || 1]); return null; }
+      if (it.type === 'pill' && !sl.n) sl = { id: sl.id, n: 1 };
+      return fixEq(sl);
+    }).filter(function (x) { return x; });
+    pend.forEach(function (p) { if (D.items[p[0]].scroll) XX.sys.inv.gainScroll(p[0], p[1]); else XX.sys.inv.gainBlueprint(p[0], p[1]); });
+    if (st.skills.gongfa && !D.gongfa[st.skills.gongfa]) st.skills.gongfa = null;
     st.battleSpeed = st.battleSpeed || 1;
     if (st.v !== C.version) st.shop = { period: -1, bought: {} };   // 版本更新后商城货架重新生成
     st.v = C.version;

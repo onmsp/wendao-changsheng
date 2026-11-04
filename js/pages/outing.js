@@ -23,14 +23,14 @@ XX.pages.outing = (function () {
 
   /* ---------- 掉落详情弹窗(点击物品可查看介绍)---------- */
   function dropHtml(drops, table, lvText, isSecret) {
-    var html = '<div class="drop-title">可能掉落' + (isSecret ? '<span class="muted small">(品阶越高越难获得)</span>' : '') + '</div><div class="drop-grid">' + drops.filter(function (d) { return D.items[d[0]]; }).map(function (d) {
+    var html = '<div class="drop-title">可能掉落' + '<span class="muted small">(品质越高越难获得)</span>' + '</div><div class="drop-grid">' + drops.filter(function (d) { return XX.sys.battle.dropAllowed(d, isSecret); }).map(function (d) {
       var p = XX.sys.battle.dropChance(d, isSecret);
       return '<button class="drop" data-item="' + d[0] + '">' + U.itemIcon(d[0], 'sm') + '<span>' + U.itemName(d[0]) + '</span><em>' + U.pct(p, p < 0.01 ? 2 : p < 0.1 ? 1 : 0) + '</em></button>';
     }).join('') + '</div>';
     html += '<div class="drop-title">法宝掉落(' + lvText + ')</div><div class="tq-row">' + table.map(function (p, q) {
       var Q = C.qualities[q];
-      return '<div class="tq" style="--qc:' + Q.color + '"><b>' + Q.short + '</b><span>' + (p ? U.pct(p, p < 0.01 ? 1 : 0) : '—') + '</span></div>';
-    }).join('') + '</div><p class="muted small">紫品附带 1 条特殊属性,金品附带 2 条。</p>';
+      return '<div class="tq" style="--qc:' + Q.color + '"><b>◆</b><span>' + (p ? U.pct(p, p < 0.01 ? 1 : 0) : '—') + '</span></div>';
+    }).join('') + '</div><p class="muted small">品质越高效果越多(颜色由低到高:白 → 金)。</p>';
     return html;
   }
   function bindDrops(w) {
@@ -63,13 +63,13 @@ XX.pages.outing = (function () {
     U.$('#out-tabs').style.display = '';
     var body = U.$('#out-body'), realm = st().realm;
     if (tab === 'trial') {
-      body.innerHTML = '<p class="section-tip">斩妖除魔,获取灵石、修为、天材地宝与法宝(最高紫品)。点击地图查看掉落。已胜 ' + st().outing.wins + ' 场</p>' + D.areas.map(function (a) {
+      body.innerHTML = '<p class="section-tip">斩妖除魔,获取灵石、材料、成品、图纸与法宝。点击地图查看掉落。已胜 ' + st().outing.wins + ' 场</p>' + D.areas.map(function (a) {
         var lock = realm < a.reqRealm;
         return '<div class="map-card' + (lock ? ' locked' : '') + '" data-id="' + a.id + '">' +
           '<div class="map-bg" style="background-image:url(' + U.img('bg/' + a.bg) + ')"></div>' +
           '<div class="map-mons">' + a.monsters.slice(0, 2).map(monImg).join('') + '</div>' +
           '<div class="map-info"><b>' + a.name + ' <em class="lv">' + a.power + '级</em></b><span class="muted small">' + a.desc + '</span>' +
-          '<div class="map-drops">' + a.drops.slice(0, 5).map(function (d) { return U.itemIcon(d[0], 'xs'); }).join('') + '<span class="small muted">· 掉落 ›</span></div></div>' +
+          '<div class="map-drops">' + a.drops.filter(function (d) { return XX.sys.battle.dropAllowed(d, false); }).slice(0, 5).map(function (d) { return U.itemIcon(d[0], 'xs'); }).join('') + '<span class="small muted">· 掉落 ›</span></div></div>' +
           '<div class="map-act">' + (lock ? '<span class="danger small">需 ' + D.realms[a.reqRealm].name + '</span>' : '<button class="btn small primary" data-go="1">前往</button>') + '</div></div>';
       }).join('');
       body.onclick = function (e) {
@@ -79,14 +79,14 @@ XX.pages.outing = (function () {
       };
     } else {
       var left = XX.sys.battle.secretLeft();
-      body.innerHTML = '<p class="section-tip">秘境次数 <b id="sec-times">' + left + '</b> / ' + C.secretMaxTimes + ',每 ' + C.secretRegenMinutes + ' 分钟恢复 1 次<span id="sec-next"></span>。通关必得仙玉,有机会获得紫/金法宝。</p>' + D.secrets.map(function (s) {
+      body.innerHTML = '<p class="section-tip">秘境次数 <b id="sec-times">' + left + '</b> / ' + C.secretMaxTimes + ',每 ' + C.secretRegenMinutes + ' 分钟恢复 1 次<span id="sec-next"></span>。通关必得仙玉,掉落只含高品质珍宝与图纸。</p>' + D.secrets.map(function (s) {
         var lock = realm < s.reqRealm;
         return '<div class="map-card secret' + (lock ? ' locked' : '') + '" data-id="' + s.id + '">' +
           '<div class="map-bg" style="background-image:url(' + U.img('bg/' + s.bg) + ')"></div>' +
           '<div class="map-mons">' + s.floors.slice(-2).map(monImg).join('') + '</div>' +
           '<div class="map-info"><b>' + s.name + '</b><span class="muted small">' + s.desc + '</span>' +
           '<span class="small">' + s.floors.length + ' 层 · 通关 <img class="ci" src="' + U.img('icon/xianyu') + '">' + s.reward.jade[0] + '~' + s.reward.jade[1] + ' · 已通关 ' + (st().secret.clears[s.id] || 0) + ' 次</span>' +
-          '<div class="map-drops">' + s.drops.slice(0, 5).map(function (d) { return U.itemIcon(d[0], 'xs'); }).join('') + '<span class="small muted">· 掉落 ›</span></div></div>' +
+          '<div class="map-drops">' + s.drops.filter(function (d) { return XX.sys.battle.dropAllowed(d, true); }).slice(0, 5).map(function (d) { return U.itemIcon(d[0], 'xs'); }).join('') + '<span class="small muted">· 掉落 ›</span></div></div>' +
           '<div class="map-act">' + (lock ? '<span class="danger small">需 ' + D.realms[s.reqRealm].name + '</span>' : '<button class="btn small primary" data-go="1">探索</button>') + '</div></div>';
       }).join('');
       body.onclick = function (e) {
@@ -129,7 +129,7 @@ XX.pages.outing = (function () {
         setBars(ev.pHp, fight.pMax, ev.pMp, fight.pMaxMp, ev.mHp, fight.monster.maxHp);
         if (ev.actor === 'p') {
           var sk = ev.skill && D.shentong[ev.skill];
-          var t = sk ? '你施展神通【' + sk.name + (ev.lv > 1 ? '·' + ev.lv + '级' : '') + '】' : '你' + (ev.double ? '连击' : '出手');
+          var t = sk ? '你施展技能【' + sk.name + (ev.lv > 1 ? '·' + ev.lv + '级' : '') + '】' : '你' + (ev.double ? '连击' : '出手');
           if (ev.hits.length) t += ',' + hitsText(ev);
           if (ev.heal) t += ',回复气血 <b class="ok">' + U.num(ev.heal) + '</b>';
           if (ev.shield) t += ',获得护盾 <b class="ok">' + U.num(ev.shield) + '</b>';
@@ -185,7 +185,7 @@ XX.pages.outing = (function () {
       if (!U.$('#bt-go')) return;
       if (r.win) {
         var items = r.reward.items.map(function (g) { return U.itemName(g[0]) + '×' + g[1]; }).join(' ');
-        var tre = r.reward.treasure ? ' <span style="color:' + U.qColor(r.reward.treasure.q) + '">【' + C.qualities[r.reward.treasure.q].short + '】' + r.reward.treasure.name + '</span>' : '';
+        var tre = r.reward.treasure ? ' <span style="color:' + U.qColor(r.reward.treasure.q) + '">【' + r.reward.treasure.name + '】</span>' : '';
         logLine('<span class="ok">胜利!</span> 灵石 +' + r.reward.stone + ' 修为 +' + U.exp(r.reward.exp) + (items ? ' ' + items : '') + tre, 'win');
         if (r.reward.treasure && r.reward.treasure.q >= 2) XX.ui.toast('获得法宝 <span style="color:' + U.qColor(r.reward.treasure.q) + '">' + r.reward.treasure.name + '</span>', 'ok');
         BV.foeDie();

@@ -35,7 +35,7 @@ XX.pages.bag = (function () {
       var it = D.items[sl.id];
       if (filter !== 'all' && it.type !== filter) return;
       var q = sl.q != null ? sl.q : it.q;
-      html += '<button class="slot" data-i="' + i + '" style="--qc:' + U.qColor(q) + '">' + U.itemIcon(sl.id, '', q) +
+      html += '<button class="slot" data-i="' + i + '" style="--qc:' + U.qColor(q) + '">' + U.itemIcon(sl.id, '', q, { g: sl.g, lv: it.type === 'equip' ? sl.lv : 0 }) +
         (sl.n ? '<span class="cnt">' + sl.n + '</span>' : '') + (sl.lv != null && it.type === 'equip' ? '<span class="cnt lv">' + sl.lv + '级</span>' : '') + '</button>';
     });
     if (filter === 'all') for (var k = bag.slots.length; k < bag.cap; k++) html += '<div class="slot empty"></div>';
@@ -53,15 +53,18 @@ XX.pages.bag = (function () {
       html = PG.equipDetail(sl);
       var worn = st.equip.filter(function (x) { return x; }).length;
       html += '<div class="muted small" style="margin-top:8px">已佩戴法宝 ' + worn + ' / ' + st.equip.length + '</div>';
+      btns.push({ text: '强化', onClick: function () { PG.enhance(sl, function () { PG.draw(); }); } });
       btns.push({ text: '佩戴', cls: 'primary', onClick: function () {
         if (inv.firstFreeTreasure() >= 0) { inv.equip(i); XX.ui.toast('已佩戴 ' + U.eqName(sl), 'ok'); PG.draw(); }
         else PG.chooseReplace(i);
       } });
     } else {
-      html = XX.ui.itemInfo(sl.id, sl.n ? '<div class="muted small">持有:' + inv.count(sl.id) + '</div>' : '');
+      var gtxt = sl.g > 1 ? '<div class="small ok">' + sl.g + ' 级图纸炼制 · 药效 ' + U.pct(inv.gMul(sl), 0) + '</div>' : '';
+      if (sl.id === 'sp_xiling') gtxt = '<div class="small ok">' + (sl.g || 1) + ' 级丹方炼制 · 最高可洗至' + D.roots.filter(function (r) { return r.grade === 5 - (sl.g || 1); })[0].name + ' · 当前转化度 ' + U.pct(st.rootProg || 0, 0) + '</div>';
+      html = XX.ui.itemInfo(sl.id, gtxt + (sl.n ? '<div class="muted small">持有:' + inv.count(sl.id) + '</div>' : ''));
       if (it.use && it.use.kind !== 'break') {
         btns.push({ text: '使用', cls: 'primary', onClick: function () { PG.useMsg(inv.use(i, 1)); } });
-        if (sl.n > 1 && (it.use.kind === 'exp' || it.use.kind === 'timed')) btns.push({ text: '使用 ×' + Math.min(10, sl.n), onClick: function () { PG.useMsg(inv.use(i, 10)); } });
+        if (sl.n > 1 && (it.use.kind === 'exp' || it.use.kind === 'timed' || it.use.kind === 'rootProg')) btns.push({ text: '使用 ×' + Math.min(10, sl.n), onClick: function () { PG.useMsg(inv.use(i, 10)); } });
       }
     }
     var price = inv.price(sl);
@@ -78,8 +81,9 @@ XX.pages.bag = (function () {
   PG.chooseReplace = function (i) {
     var st = XX.store.state;
     var html = '<p class="muted small center">法宝位已满,选择要替换的法宝</p><div class="replace-list">' + st.equip.map(function (e, k) {
-      return '<button class="seed" data-k="' + k + '">' + U.itemIcon(e.id, '', e.q) + '<div><b style="color:' + U.qColor(e.q) + '">' + U.eqName(e) + '</b> <span class="muted small">' + (e.lv || 0) + '级</span><div class="muted small">' +
-        Object.keys(e.stats).map(function (s) { var v = e.stats[s]; return STAT_NAMES[s] + '+' + (v < 1 ? U.pct(v) : U.num(v)); }).join(' ') + '</div></div></button>';
+      var es = XX.sys.inv.eqStats(e);
+      return '<button class="seed" data-k="' + k + '">' + U.itemIcon(e.id, '', e.q, { lv: e.lv }) + '<div><b style="color:' + U.qColor(e.q) + '">' + U.eqName(e) + '</b> <span class="muted small">' + U.lvText(e.lv) + '</span><div class="muted small">' +
+        Object.keys(es).map(function (s) { var v = es[s]; return STAT_NAMES[s] + '+' + (v < 1 ? U.pct(v) : U.num(v)); }).join(' ') + '</div></div></button>';
     }).join('') + '</div>';
     XX.ui.modal({
       title: '替换法宝', html: html, buttons: [{ text: '取消' }],
@@ -89,6 +93,27 @@ XX.pages.bag = (function () {
           XX.sys.inv.equip(i, +b.dataset.k); XX.ui.toast('法宝已替换', 'ok'); PG.draw(); close();
         };
       }
+    });
+  };
+
+  /* 法宝强化面板(背包与人物页共用) */
+  PG.enhance = function (e, onDone) {
+    var inv = XX.sys.inv;
+    function body() {
+      var max = (e.lv || 1) >= XX.config.maxLv, c = max ? null : inv.enhanceCost(e), nx = { lv: (e.lv || 1) + 1, bs: e.bs };
+      var cur = inv.eqStats(e), next = max ? null : inv.eqStats(nx);
+      return '<div class="enh">' + XX.ui.equipDetail(e) +
+        (max ? '<p class="center star">★ 已强化至满级</p>' : '<div class="enh-next"><div class="muted small">强化至 ' + U.lvText(e.lv + 1) + '(基础属性 +20%)</div>' +
+          Object.keys(cur).map(function (k) { return '<span>' + STAT_NAMES[k] + ' ' + (cur[k] < 1 ? U.pct(cur[k]) : U.num(cur[k])) + ' → <b class="ok">' + (next[k] < 1 ? U.pct(next[k]) : U.num(next[k])) + '</b></span>'; }).join('') +
+          '<div class="enh-cost">消耗 ' + XX.sys.cave.costText(c) + '</div></div>') + '</div>';
+    }
+    XX.ui.modal({
+      title: '法宝强化', html: '<div id="enh-box">' + body() + '</div>',
+      buttons: [{ text: '关闭' }, { text: '强化', cls: 'primary', onClick: function (close, w) {
+        var r = inv.enhance(e); XX.ui.toast(r.msg, r.ok ? 'ok' : 'warn');
+        U.$('#enh-box', w).innerHTML = body(); if (onDone) onDone();
+        return false;
+      } }]
     });
   };
 

@@ -29,7 +29,7 @@ XX.pages.shop = (function () {
       return '<div class="offer' + (out ? ' soldout' : '') + '" style="--qc:' + U.qColor(it.q) + '">' +
         '<div class="offer-icon" data-info="' + x.o.item + '">' + U.itemIcon(x.o.item) + (x.o.n > 1 ? '<span class="cnt">×' + x.o.n + '</span>' : '') + '</div>' +
         '<div class="offer-name">' + U.itemName(x.o.item) + '</div>' +
-        '<div class="offer-cat">' + D.shopCatName[D.shopCategory(x.o.item)] + ' · ' + XX.config.qualities[it.q || 0].short + '</div>' +
+        '<div class="offer-cat">' + D.shopCatName[D.shopCategory(x.o.item)] + '</div>' +
         '<div class="muted small">限购 ' + Math.max(0, x.left) + '/' + x.o.stock + '</div>' +
         '<button class="btn small primary" data-buy="' + x.slot + '"' + (out || jade < x.price ? ' disabled' : '') + '>' +
         (out ? '已售罄' : '<img class="ci" src="' + U.img('icon/xianyu') + '">' + x.price) + '</button></div>';

@@ -43,7 +43,7 @@ XX.screens.game = (function () {
         title: '仙途伊始',
         html: '<p>道友<b>' + U.esc(st.name) + '</b>,欢迎踏入修仙界。</p>' +
           '<p class="muted">· 你身负<b style="color:#b8b2a6">五色灵根</b>,每 3 秒自动吸纳 10 点修为。<br>' +
-          '· 修为可一直累积,突破需手动,气运越高成功率越高;每次突破永久提升修炼速度。<br>· 洞府各设施可升级(上限 10 级):丹炉等级决定可炼丹药品阶,蓝色以上与特殊丹药需丹方。<br>· 人物页可装配功法与神通,背包中有一把长剑,记得佩戴。<br>· 前往【洞府】种植灵草、开炉炼丹;前往【外出】历练妖兽、探索秘境。<br>· 离线期间亦会持续修炼(最多 12 小时)。</p>',
+          '· 修为可一直累积,突破需手动,气运越高成功率越高;每次突破永久提升修炼速度。<br>· 人物页可运转功法(被动)与装配技能(战斗中概率触发),初始未装配,记得前往设置;背包中有一把长剑,记得佩戴。<br>· 炼丹、炼器、阵法需对应图纸,图纸等级越高效果越强;灵田设置播种顺序后自动种收。<br>· 前往【洞府】种植灵草、开炉炼丹;前往【外出】历练妖兽、探索秘境。<br>· 离线期间亦会持续修炼(最多 12 小时)。</p>',
         buttons: [{ text: '开始修炼', cls: 'primary' }]
       });
     }
@@ -78,12 +78,18 @@ XX.screens.game = (function () {
   G.tick = function () {
     if (!XX.store.state) return;
     var gain = XX.sys.player.tick(Date.now());
+    G._ft = (G._ft || 0) + 1;
+    if (G._ft % 6 === 0) {   // 每 3 秒处理一次自动灵田
+      var fr = XX.sys.cave.autoField();
+      if (fr.got.length) XX.ui.toast('灵田自动收获:' + fr.got.map(function (g) { return XX.data.items[g[0]].name + '×' + g[1]; }).join('、'), 'ok');
+    }
     G.refreshTop();
     if (curPage && curPage.update) curPage.update(gain);
   };
 
   G.offlineReport = function () {
     var r = XX.sys.player.offline(), st = XX.store.state;
+    var fr = XX.sys.cave.autoField();
     if (r.sec < 60) return;
     var mine = XX.sys.cave.minePending();
     XX.ui.modal({
@@ -91,7 +97,8 @@ XX.screens.game = (function () {
       html: '<p class="center">你闭关了 <b>' + U.timeCN(r.sec) + '</b>' + (r.sec >= XX.config.offlineCapHours * 3600 ? '(已达上限)' : '') + '</p>' +
         '<div class="offline-grid"><div><span>获得修为</span><b>+' + U.exp(r.gain) + '</b></div>' +
         '<div><span>当前境界</span><b>' + XX.sys.player.realm().name + '</b></div>' +
-        '<div><span>灵矿待收</span><b>' + U.num(mine.stone) + ' 灵石</b></div></div>',
+        '<div><span>灵矿待收</span><b>' + U.num(mine.stone) + ' 灵石</b></div></div>' +
+        (fr.got.length ? '<div class="drop-title">灵田自动收获</div>' + XX.ui.rewardList(fr.got) : ''),
       buttons: [{ text: '好', cls: 'primary' }]
     });
     if (XX.sys.player.canBreak()) XX.ui.toast('修为已足,可前往人物页手动突破');

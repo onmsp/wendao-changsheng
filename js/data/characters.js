@@ -2,7 +2,7 @@
  * 角色模板
  * 图片规则:assets/char/{id}_stand.webp(看板) / _med.webp(打坐) / _atk.webp(战斗) / _avatar.webp(头像)
  * atkFx:普通攻击演出类型(slash 剑气 / rune 符阵 / fire 火球 / heavy 重劈 / sound 音波 / thrust 突刺 / foxfire 狐火 / wave 琴刃 / twin 双斩 / leaf 叶刃)
- * skill:本命神通名称(数据见 skills.js)
+ * skill:本命技能名称(数据见 skills.js)
  * bonus:模板天赋,作为属性加成(百分比字段以 Pct 结尾)
  */
 XX.data.characters = [

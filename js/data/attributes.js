@@ -2,7 +2,7 @@
 XX.data.attributes = [
   { key: 'hp', name: '气血', group: '战斗', fmt: 'int', desc: '肉身生命之本。战斗中气血归零即落败。随境界提升、法衣与丹药增长。' },
   { key: 'mp', name: '灵力', group: '战斗', fmt: 'int', desc: '体内储存的真元。战斗中灵力充足时会施展功法,造成 160% 伤害并消耗灵力。' },
-  { key: 'atk', name: '攻击', group: '战斗', fmt: 'int', desc: '神通与法器的杀伤力。伤害 = 攻击² ÷ (攻击 + 敌方防御),浮动 ±10%。' },
+  { key: 'atk', name: '攻击', group: '战斗', fmt: 'int', desc: '技能与法器的杀伤力。伤害 = 攻击² ÷ (攻击 + 敌方防御),浮动 ±10%。' },
   { key: 'def', name: '防御', group: '战斗', fmt: 'int', desc: '护体罡气与法衣的坚韧程度。防御越高,受到的伤害越低。' },
   { key: 'spd', name: '身法', group: '战斗', fmt: 'int', desc: '遁速与反应。身法高者先手出招,并略微提高闪避。' },
   { key: 'sense', name: '神识', group: '战斗', fmt: 'int', desc: '神魂之力。每 10 点神识提高 0.5% 暴击率,并可降低被敌人暴击的概率。' },
