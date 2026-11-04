@@ -24,6 +24,7 @@ XX.screens.create = (function () {
       '  <div class="aura"></div><div class="aura ring"></div>' +
       '  <img class="preview-img" id="cr-img" alt="">' +
       '  <div class="preview-name" id="cr-pname"></div>' +
+      '  <div class="zoom-hint">🔍 点击立绘查看原图</div>' +
       '</div>' +
       '<div class="create-panel">' +
       '  <div class="gender-tabs" id="cr-gender"><button data-g="male" class="on">男 修</button><button data-g="female">女 修</button></div>' +
@@ -84,7 +85,8 @@ XX.screens.create = (function () {
     img.classList.remove('show');
     img.className = 'preview-img view-' + sel.view;
     img.onload = function () { img.classList.add('show'); };
-    img.src = U.img('char/' + t.id + '_' + sel.view);
+    img.src = U.img('char/hd/' + t.id + '_stand');
+    img.onclick = function () { XX.ui.viewer(U.img('char/hd/' + t.id + '_stand'), t.name + ' · ' + t.school); };
     if (img.complete && img.naturalWidth) requestAnimationFrame(function () { img.classList.add('show'); });
     U.$('.preview').style.setProperty('--cc', t.color);
     U.$('#cr-pname').innerHTML = '<b>' + t.name + '</b><span>' + t.school + '</span>';

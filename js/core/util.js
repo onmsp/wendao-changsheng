@@ -36,6 +36,16 @@ XX.util = (function () {
     if (n >= 1e5) return (n / 1e4).toFixed(n >= 1e7 ? 0 : 1).replace(/\.0$/, '') + '万';
     return String(n);
   };
+  /* 修为:保留两位小数,第三位舍去 */
+  U.trunc2 = function (x) { return Math.floor((x || 0) * 100 + 1e-6) / 100; };
+  U.exp = function (n) {
+    n = U.trunc2(n);
+    if (n >= 1e8) return (Math.floor(n / 1e6) / 100).toFixed(2) + '亿';
+    if (n >= 1e5) return (Math.floor(n / 100) / 100).toFixed(2) + '万';
+    return n.toFixed(2);
+  };
+  /* 法宝实例名称(普通法宝带材质前缀) */
+  U.eqName = function (sl) { return (sl && sl.name) || (XX.data.items[sl.id] || {}).name || ''; };
   U.pct = function (v, d) { return (v * 100).toFixed(d == null ? 1 : d).replace(/\.0$/, '') + '%'; };
 
   U.time = function (sec) {

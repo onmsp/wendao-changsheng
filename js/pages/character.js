@@ -15,7 +15,8 @@ XX.pages.character = (function () {
       '<section class="char-show" id="ch-show" style="--cc:' + t.color + '">' +
       '  <div class="aura"></div><div class="aura ring"></div><div class="motes up">' + motes + '</div>' +
       '  <div class="qi-layer" id="ch-qi"></div>' +
-      '  <img class="char-img view-med" id="ch-img" src="' + P.img('med') + '" alt="">' +
+      '  <img class="char-img view-med" id="ch-img" src="' + P.img('med', null, true) + '" alt="">' +
+      '  <div class="zoom-hint">🔍 点击查看原图</div>' +
       CORNERS.map(function (c, i) { return '<button class="treasure ' + c + '" data-s="' + i + '"></button>'; }).join('') +
       '  <div class="char-plate">' +
       '    <div class="cp-name">' + U.esc(st.name) + '</div>' +
@@ -28,6 +29,9 @@ XX.pages.character = (function () {
       '    <div class="cult-rate"><span class="muted small">吸纳灵气</span><b id="ch-rate"></b></div></div>' +
       '  <div class="cult-row"><div class="cult-tip" id="ch-tip"></div><button class="btn primary break-btn" id="ch-break">突 破</button></div>' +
       '</section>' +
+      '<section class="card tech-card"><div class="card-title">功法神通<span class="muted small" id="ch-slotinfo"></span></div>' +
+      '  <div class="tech-wrap"><button class="tech gongfa" data-cat="gongfa" data-i="0" id="ch-gongfa"></button>' +
+      '  <div class="tech-st" id="ch-st"></div></div></section>' +
       '<section class="card fold' + (attrOpen ? ' open' : '') + '" id="ch-attrcard">' +
       '  <button class="fold-head" id="ch-attrtoggle"><span class="card-title">人物属性</span><span class="power">战力 <b id="ch-power"></b></span><i class="arrow">▾</i></button>' +
       '  <div class="attr-sum" id="ch-sum"></div>' +
@@ -47,7 +51,13 @@ XX.pages.character = (function () {
       XX.ui.modal({ title: a.name, html: '<p>' + a.desc + '</p>' + (a.key === 'rate' ? PG.rateDetail() : '') });
     };
     U.$('#ch-show').onclick = function (e) {
-      var b = e.target.closest('.treasure'); if (b) PG.treasureInfo(+b.dataset.s);
+      var b = e.target.closest('.treasure'); if (b) { PG.treasureInfo(+b.dataset.s); return; }
+      if (e.target.closest('#ch-img') || e.target.closest('.zoom-hint')) XX.ui.viewer(P.img('med', null, true), st.name + ' · 打坐');
+    };
+    U.$('.tech-card').onclick = function (e) {
+      var b = e.target.closest('.tech'); if (!b) return;
+      if (b.classList.contains('locked')) { XX.ui.toast(b.dataset.lock); return; }
+      PG.chooseTech(b.dataset.cat, +b.dataset.i);
     };
     PG.full();
   };
@@ -55,10 +65,12 @@ XX.pages.character = (function () {
   PG.rateDetail = function () {
     var P = XX.sys.player, st = XX.store.state, r = P.realm();
     return '<table class="tbl"><tr><td>灵根基础</td><td>' + P.root().rate + ' 点</td></tr>' +
-      '<tr><td>境界加成</td><td>+' + U.pct(r.major * D.realmCurve.majorRateBonus, 0) + '</td></tr>' +
+      '<tr><td>突破累计</td><td>+' + U.pct(P.breakRate(), 0) + '</td></tr>' +
+      '<tr><td>功法【' + (P.gongfa() ? P.gongfa().name : '无') + '】</td><td>+' + U.pct((P.gongfa() && P.gongfa().effects.rate) || 0, 0) + '</td></tr>' +
       '<tr><td>聚灵阵</td><td>+' + U.pct(P.arrayVal('juling'), 0) + '</td></tr>' +
-      '<tr><td>功法参悟</td><td>+' + U.pct(st.perm.rateBonus || 0, 0) + '</td></tr>' +
-      '<tr><td><b>合计</b></td><td><b>' + P.rate() + ' 点 / 3 秒</b></td></tr></table>';
+      (st.perm.rateBonus ? '<tr><td>旧版功法残留</td><td>+' + U.pct(st.perm.rateBonus, 0) + '</td></tr>' : '') +
+      '<tr><td>法宝聚灵</td><td>+' + U.pct(P.bonus().rate - ((P.gongfa() && P.gongfa().effects.rate) || 0) || 0, 0) + '</td></tr>' +
+      '<tr><td><b>合计</b></td><td><b>' + P.rate().toFixed(2) + ' 点 / 3 秒</b></td></tr></table>';
   };
 
   PG.fmt = function (a, v) {
@@ -81,11 +93,12 @@ XX.pages.character = (function () {
     }).join('');
     CORNERS.forEach(function (c, i) {
       var e = st.equip[i], b = U.$('.treasure.' + c);
-      b.innerHTML = e ? U.itemIcon(e.id, '', e.q) + '<span>' + D.items[e.id].name + '</span>' : '<div class="item-icon empty">+</div><span>法宝</span>';
+      b.innerHTML = e ? U.itemIcon(e.id, '', e.q) + '<span style="color:' + U.qColor(e.q) + '">' + U.eqName(e) + '</span>' : '<div class="item-icon empty">+</div><span>法宝</span>';
       b.classList.toggle('filled', !!e);
     });
     U.$('#ch-log').innerHTML = st.log.slice(0, 20).map(function (l) { return '<li><em>' + l.t + '</em>' + l.text + '</li>'; }).join('');
     U.$('#ch-loglast').textContent = st.log[0] ? st.log[0].text.slice(0, 14) + '…' : '';
+    PG.drawTech();
     PG._realm = st.realm; PG._log = st.log.length;
     PG.update(0);
   };
@@ -94,21 +107,21 @@ XX.pages.character = (function () {
   PG.update = function (gain) {
     if (!root || !U.$('#ch-exp')) return;
     var P = XX.sys.player, st = XX.store.state, need = P.expNeed(), info = P.breakInfo();
-    U.$('#ch-exp').textContent = U.num(st.exp);
-    U.$('#ch-need').textContent = ' / ' + U.num(need);
-    U.$('#ch-rate').textContent = P.isFull() ? '已圆满' : '+' + P.rate() + ' / 3秒';
+    U.$('#ch-exp').textContent = U.exp(st.exp);
+    U.$('#ch-need').textContent = ' / ' + U.exp(need);
+    U.$('#ch-rate').textContent = '+' + P.rate().toFixed(2) + ' / 3秒';
     var tip, btn = U.$('#ch-break');
     if (PG._breaking) return;
     if (info.max) { tip = '已臻至境'; btn.disabled = true; }
     else if (!info.ready) {
-      tip = '下一境界「' + info.next.name + '」<br><span class="muted">突破成功率 ' + U.pct(info.chance, 0) + '(含气运 +' + U.pct(info.luckBonus, 0) + ')</span>';
+      tip = '下一境界「' + info.next.name + '」,还需 ' + U.exp(need - st.exp) + ' 修为<br><span class="muted">成功率 ' + U.pct(info.chance, 0) + '(含气运 +' + U.pct(info.luckBonus, 0) + ')· 突破后修炼速度 +' + U.pct(info.rateGain, 0) + '</span>';
       btn.disabled = true;
     } else if (info.major) {
       tip = '瓶颈!冲击<b>' + info.next.majorName + '</b>需【' + D.items[info.pill].name + '】' + (info.havePill ? '<span class="ok">✔</span>' : '<span class="danger">✘</span>') +
-        '<br><span class="muted">成功率 <b class="ok">' + U.pct(info.chance, 0) + '</b>(基础 ' + U.pct(info.base, 0) + ' · 气运 +' + U.pct(info.luckBonus, 0) + (info.talisman ? ' · 破境符 +' + U.pct(info.talisman, 0) : '') + ')</span>';
+        '<br><span class="muted">成功率 <b class="ok">' + U.pct(info.chance, 0) + '</b>(基础 ' + U.pct(info.base, 0) + ' · 气运 +' + U.pct(info.luckBonus, 0) + (info.talisman ? ' · 破境符 +' + U.pct(info.talisman, 0) : '') + ')· 修炼速度 +' + U.pct(info.rateGain, 0) + '</span>';
       btn.disabled = false;
     } else {
-      tip = '修为圆满,可冲击「' + info.next.name + '」<br><span class="muted">成功率 <b class="ok">' + U.pct(info.chance, 0) + '</b>(基础 ' + U.pct(info.base, 0) + ' · 气运 +' + U.pct(info.luckBonus, 0) + ')</span>';
+      tip = '修为已足,可冲击「' + info.next.name + '」<br><span class="muted">成功率 <b class="ok">' + U.pct(info.chance, 0) + '</b>(基础 ' + U.pct(info.base, 0) + ' · 气运 +' + U.pct(info.luckBonus, 0) + ')· 修炼速度 +' + U.pct(info.rateGain, 0) + '</span>';
       btn.disabled = false;
     }
     U.$('#ch-tip').innerHTML = tip;
@@ -142,7 +155,7 @@ XX.pages.character = (function () {
       if (!img.isConnected) return;
       img.classList.remove('absorb'); void img.offsetWidth; img.classList.add('absorb');
       var t = document.createElement('div');
-      t.className = 'qi-gain'; t.textContent = '+' + U.num(gain) + ' 修为';
+      t.className = 'qi-gain'; t.textContent = '+' + U.exp(gain) + ' 修为';
       layer.appendChild(t);
       setTimeout(function () { t.remove(); }, 1600);
     }, 1100);
@@ -172,8 +185,56 @@ XX.pages.character = (function () {
     if (!e) { XX.ui.toast('在背包中点击法宝即可佩戴'); return; }
     XX.ui.modal({
       title: '法宝',
-      html: XX.pages.bag.equipDetail(e),
+      html: XX.ui.equipDetail(e),
       buttons: [{ text: '卸下', onClick: function () { XX.sys.inv.unequip(slot); PG.full(); } }, { text: '关闭', cls: 'primary' }]
+    });
+  };
+
+  /* ---------- 功法神通 ---------- */
+  function techIcon(def) { return '<div class="tech-icon q' + def.q + '" style="--qc:' + U.qColor(def.q) + '"><img src="' + U.img(def.icon) + '"' + (def.hue ? ' style="filter:hue-rotate(' + def.hue + 'deg)"' : '') + ' alt=""></div>'; }
+  PG.drawTech = function () {
+    var st = XX.store.state, P = XX.sys.player, slots = P.slots(), g = P.gongfa();
+    U.$('#ch-slotinfo').textContent = '功法 1 · 神通 ' + slots.shentong + '/' + XX.config.techniqueSlots[XX.config.techniqueSlots.length - 1].shentong;
+    U.$('#ch-gongfa').innerHTML = g ? techIcon(g) + '<span>' + g.name + '</span><em>功法</em>' : '<div class="tech-icon empty">+</div><span>功法</span>';
+    var html = '';
+    for (var i = 0; i < 4; i++) {
+      var id = st.skills.shentong[i], def = id && D.shentong[id], lock = i >= slots.shentong;
+      var lockText = i === 2 ? '元婴期解锁' : '渡劫期解锁';
+      html += '<button class="tech' + (lock ? ' locked' : '') + '" data-cat="shentong" data-i="' + i + '" data-lock="' + lockText + '">' +
+        (lock ? '<div class="tech-icon empty">🔒</div><span>' + lockText + '</span>' : def ? techIcon(def) + '<span>' + def.name + '</span><em>神通' + (i + 1) + '</em>' : '<div class="tech-icon empty">+</div><span>神通' + (i + 1) + '</span>') + '</button>';
+    }
+    U.$('#ch-st').innerHTML = html;
+  };
+  PG.chooseTech = function (cat, slot) {
+    var st = XX.store.state, list = cat === 'gongfa' ? st.skills.learnedGongfa : st.skills.learnedShentong, src = cat === 'gongfa' ? D.gongfa : D.shentong;
+    var cur = cat === 'gongfa' ? st.skills.gongfa : st.skills.shentong[slot];
+    var html = '<div class="tech-list">' + list.map(function (id) {
+      var d = src[id], on = id === cur, used = cat === 'shentong' && !on && st.skills.shentong.indexOf(id) >= 0;
+      var info = cat === 'gongfa' ? Object.keys(d.effects).map(function (k) {
+        var nm = { rate: '修炼速度', hpPct: '气血', atkPct: '攻击', defPct: '防御', mpPct: '灵力', sensePct: '神识', luck: '气运', comprehension: '悟性' }[k] || k;
+        return nm + '+' + (d.effects[k] < 1 ? U.pct(d.effects[k], 0) : d.effects[k]);
+      }).join(' ') : '灵力 ' + U.pct(d.cost, 0) + ' · 冷却 ' + d.cd + ' 回合';
+      return '<button class="seed tech-opt' + (on ? ' on' : '') + '" data-id="' + id + '">' + techIcon(d) + '<div><b style="color:' + U.qColor(d.q) + '">' + d.name + '</b>' +
+        (on ? ' <span class="ok small">运转中</span>' : used ? ' <span class="muted small">(已装配其他栏)</span>' : '') +
+        '<div class="muted small">' + info + '</div><div class="small">' + d.desc + '</div></div></button>';
+    }).join('') + '</div><p class="muted small center">更多' + (cat === 'gongfa' ? '功法' : '神通') + '可从历练、秘境、商城获得玉简参悟</p>';
+    XX.ui.modal({
+      title: cat === 'gongfa' ? '运转功法' : '装配神通 · 第' + (slot + 1) + '栏', html: html,
+      buttons: cat === 'shentong' && cur ? [{ text: '卸下', onClick: function () { st.skills.shentong[slot] = null; PG.full(); } }, { text: '关闭' }] : [{ text: '关闭' }],
+      onOpen: function (w, close) {
+        U.$('.tech-list', w).onclick = function (e) {
+          var b = e.target.closest('[data-id]'); if (!b) return;
+          var id = b.dataset.id;
+          if (cat === 'gongfa') st.skills.gongfa = id;
+          else {
+            var other = st.skills.shentong.indexOf(id);
+            if (other >= 0) st.skills.shentong[other] = st.skills.shentong[slot];
+            st.skills.shentong[slot] = id;
+          }
+          XX.ui.toast((cat === 'gongfa' ? '改为运转【' : '已装配【') + src[id].name + '】', 'ok');
+          close(); PG.full();
+        };
+      }
     });
   };
 

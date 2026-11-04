@@ -53,7 +53,7 @@
 @keyframes auraPulse { 50% { transform: translate(-50%, -50%) scale(1.12); opacity: .7; } }
 @keyframes ringSpin { from { transform: translate(-50%, -50%) rotateX(72deg) rotateZ(0); } to { transform: translate(-50%, -50%) rotateX(72deg) rotateZ(360deg); } }
 .preview-img {
-  position: absolute; left: 50%; bottom: 4%; height: 92%; max-width: 96%; object-fit: contain; transform: translateX(-50%);
+  position: absolute; left: 50%; bottom: 0; height: 104%; max-width: 100%; object-fit: contain; object-position: center bottom; transform: translateX(-50%); cursor: zoom-in;
   opacity: 0; transition: opacity .35s; filter: drop-shadow(0 0 14px color-mix(in srgb, var(--cc) 50%, transparent));
 }
 .preview-img.show { opacity: 1; }
@@ -155,3 +155,5 @@
   .avatar-pick span { font-size: 10px; }
   .logo-text { font-size: 50px; }
 }
+
+.zoom-hint { position: absolute; right: 10px; bottom: 8px; z-index: 3; font-size: 11px; color: #fff; background: rgba(0, 0, 0, .45); border: 1px solid rgba(232, 199, 122, .35); border-radius: 10px; padding: 2px 8px; pointer-events: none; }

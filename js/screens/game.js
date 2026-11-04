@@ -43,7 +43,7 @@ XX.screens.game = (function () {
         title: '仙途伊始',
         html: '<p>道友<b>' + U.esc(st.name) + '</b>,欢迎踏入修仙界。</p>' +
           '<p class="muted">· 你身负<b style="color:#b8b2a6">五色灵根</b>,每 3 秒自动吸纳 10 点修为。<br>' +
-          '· 修为圆满后需手动突破,气运越高成功率越高;大境界还需丹药。<br>· 前往【洞府】种植灵草、开炉炼丹;前往【外出】历练妖兽、探索秘境。<br>· 离线期间亦会持续修炼(最多 12 小时)。</p>',
+          '· 修为可一直累积,突破需手动,气运越高成功率越高;每次突破永久提升修炼速度。<br>· 人物页可装配功法与神通,背包中有一把长剑,记得佩戴。<br>· 前往【洞府】种植灵草、开炉炼丹;前往【外出】历练妖兽、探索秘境。<br>· 离线期间亦会持续修炼(最多 12 小时)。</p>',
         buttons: [{ text: '开始修炼', cls: 'primary' }]
       });
     }
@@ -71,8 +71,8 @@ XX.screens.game = (function () {
     var st = XX.store.state, P = XX.sys.player;
     U.$('#tb-stone').textContent = U.num(st.stone);
     U.$('#tb-jade').textContent = U.num(st.jade);
-    U.$('#tb-realm').textContent = P.realm().name + (P.isFull() ? ' · 可突破' : '');
-    U.$('#tb-realm').classList.toggle('full', P.isFull());
+    U.$('#tb-realm').textContent = P.realm().name + (P.canBreak() ? ' · 可突破' : '');
+    U.$('#tb-realm').classList.toggle('full', P.canBreak());
   };
 
   G.tick = function () {
@@ -89,12 +89,12 @@ XX.screens.game = (function () {
     XX.ui.modal({
       title: '闭关出关',
       html: '<p class="center">你闭关了 <b>' + U.timeCN(r.sec) + '</b>' + (r.sec >= XX.config.offlineCapHours * 3600 ? '(已达上限)' : '') + '</p>' +
-        '<div class="offline-grid"><div><span>获得修为</span><b>+' + U.num(r.gain) + '</b></div>' +
+        '<div class="offline-grid"><div><span>获得修为</span><b>+' + U.exp(r.gain) + '</b></div>' +
         '<div><span>当前境界</span><b>' + XX.sys.player.realm().name + '</b></div>' +
         '<div><span>灵矿待收</span><b>' + U.num(mine.stone) + ' 灵石</b></div></div>',
       buttons: [{ text: '好', cls: 'primary' }]
     });
-    if (XX.sys.player.isFull()) XX.ui.toast('修为已圆满,请前往人物页手动突破');
+    if (XX.sys.player.canBreak()) XX.ui.toast('修为已足,可前往人物页手动突破');
   };
 
   G.settings = function () {

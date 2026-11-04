@@ -31,17 +31,26 @@ XX.sys.cave = (function () {
     var bonus = s.comprehension * 0.005 + (kind === 'alchemy' ? (b.alchemyRate || 0) : 0);
     return U.clamp(r.rate + bonus, 0.05, 0.99);
   };
-  K.startCraft = function (kind, rid) {
+  K.known = function (kind, r) { return kind === 'alchemy' || !!st().blueprints[r.id]; };
+  K.batchTime = function (r, n) { return r.time * (1 + (n - 1) * D.batchTimeFactor); };
+  /* 最多可同时炼几炉 */
+  K.maxBatch = function (kind, r) {
+    if (kind !== 'alchemy') return 1;
+    return Math.max(0, Math.min(99, inv().maxTimes(r.need), r.stone ? Math.floor(st().stone / r.stone) : 99));
+  };
+  K.startCraft = function (kind, rid, n) {
     var r = K.recipe(kind, rid);
+    n = kind === 'alchemy' ? Math.max(1, Math.floor(n || 1)) : 1;
     if (cave()[kind]) return { ok: false, msg: '炉火未熄,请先收取' };
+    if (!K.known(kind, r)) return { ok: false, msg: '尚未掌握图纸' };
     if (st().realm < r.reqRealm) return { ok: false, msg: '境界不足' };
-    if (st().stone < r.stone) return { ok: false, msg: '灵石不足' };
-    if (!inv().hasAll(r.need)) return { ok: false, msg: '材料不足' };
-    inv().consume(r.need);
-    st().stone -= r.stone;
+    if (st().stone < r.stone * n) return { ok: false, msg: '灵石不足' };
+    if (!inv().hasAll(r.need, n)) return { ok: false, msg: '材料不足' };
+    inv().consume(r.need, n);
+    st().stone -= r.stone * n;
     var now = Date.now();
-    cave()[kind] = { rid: rid, start: now, end: now + r.time * 1000 };
-    return { ok: true, msg: (kind === 'alchemy' ? '丹炉' : '器炉') + '已开启:' + r.name };
+    cave()[kind] = { rid: rid, n: n, start: now, end: now + K.batchTime(r, n) * 1000 };
+    return { ok: true, msg: (kind === 'alchemy' ? '丹炉' : '器炉') + '已开启:' + r.name + (n > 1 ? ' ×' + n + ' 炉' : '') };
   };
   K.craftProgress = function (kind) {
     var j = cave()[kind];
@@ -52,27 +61,34 @@ XX.sys.cave = (function () {
   K.collectCraft = function (kind) {
     var p = K.craftProgress(kind);
     if (!p || p.ratio < 1) return { ok: false, msg: '尚未完成' };
-    var r = p.recipe, s = P().stats();
-    if (Math.random() > K.successRate(kind, r)) {
-      cave()[kind] = null;
-      XX.store.addLog((kind === 'alchemy' ? '炼丹' : '炼器') + '失败,' + r.name + '化为飞灰。');
-      return { ok: false, fail: true, msg: (kind === 'alchemy' ? '炸炉了!' : '器胚碎裂!') + r.name + '炼制失败' };
-    }
-    var outId = r.out[0], n = U.randInt(r.out[1], r.out[2]);
-    var outDef = D.items[outId];
-    if (!inv().canAdd(outId, n)) return { ok: false, msg: '储物袋空间不足,请先整理' };
-    var got;
+    var r = p.recipe, s = P().stats(), n = p.job.n || 1, rate = K.successRate(kind, r);
+    var outId = r.out[0], outDef = D.items[outId];
     if (outDef.type === 'equip') {
-      var q = inv().rollQuality(outDef.q, s.comprehension * 0.02 + s.luck * 0.01);
-      inv().add(outId, 1, false, { q: q });
-      got = XX.config.qualities[q].name + '·' + outDef.name;
-    } else {
-      inv().add(outId, n);
-      got = outDef.name + ' ×' + n;
+      if (inv().free() < 1) return { ok: false, msg: '储物袋空间不足,请先整理' };
+      cave()[kind] = null;
+      if (Math.random() > rate) {
+        XX.store.addLog('炼器失败,' + r.name + '器胚碎裂。');
+        return { ok: false, fail: true, msg: '器胚碎裂!' + r.name + '炼制失败' };
+      }
+      var gold = Math.random() < D.forgeGoldChance + s.comprehension * 0.005 + s.luck * 0.003;
+      var eq = inv().makeEquip(outId, gold ? 4 : 3, r.lv);
+      inv().addInstance(eq);
+      var txt = XX.config.qualities[eq.q].name + '·' + eq.name;
+      XX.store.addLog('神兵出炉:获得特殊法宝 ' + txt + '。');
+      return { ok: true, msg: '炼制成功!获得 ' + txt, eq: eq };
     }
+    var okCount = 0, total = 0;
+    for (var i = 0; i < n; i++) if (Math.random() <= rate) { okCount++; total += U.randInt(r.out[1], r.out[2]); }
+    if (total > 0 && !inv().canAdd(outId, total)) return { ok: false, msg: '储物袋空间不足,请先整理' };
     cave()[kind] = null;
-    XX.store.addLog((kind === 'alchemy' ? '开炉成丹' : '神兵出炉') + ':获得 ' + got + '。');
-    return { ok: true, msg: '炼制成功!获得 ' + got };
+    if (!okCount) {
+      XX.store.addLog('炼丹失败,' + r.name + '尽化飞灰。');
+      return { ok: false, fail: true, msg: '炸炉了!' + r.name + '炼制失败' };
+    }
+    inv().add(outId, total);
+    var msg = '成丹 ' + okCount + '/' + n + ' 炉,获得 ' + outDef.name + ' ×' + total;
+    XX.store.addLog('开炉成丹:' + msg + '。');
+    return { ok: true, msg: msg };
   };
 
   /* ---------- 灵田 ---------- */

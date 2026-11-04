@@ -36,22 +36,13 @@ XX.pages.bag = (function () {
       if (filter !== 'all' && it.type !== filter) return;
       var q = sl.q != null ? sl.q : it.q;
       html += '<button class="slot" data-i="' + i + '" style="--qc:' + U.qColor(q) + '">' + U.itemIcon(sl.id, '', q) +
-        (sl.n ? '<span class="cnt">' + sl.n + '</span>' : '') + '</button>';
+        (sl.n ? '<span class="cnt">' + sl.n + '</span>' : '') + (sl.lv != null && it.type === 'equip' ? '<span class="cnt lv">' + sl.lv + '级</span>' : '') + '</button>';
     });
     if (filter === 'all') for (var k = bag.slots.length; k < bag.cap; k++) html += '<div class="slot empty"></div>';
     U.$('#bag-grid').innerHTML = html;
   };
 
-  PG.equipDetail = function (e) {
-    var it = D.items[e.id];
-    return '<div class="item-detail">' + U.itemIcon(e.id, 'lg', e.q) + '<div><div class="item-detail-name" style="color:' + U.qColor(e.q) + '">' + it.name + '</div>' +
-      '<div class="muted">法宝 · ' + XX.config.qualities[e.q].name + '</div></div></div>' +
-      '<p class="item-desc">' + it.desc + '</p><div class="stat-list">' +
-      Object.keys(e.stats).map(function (k) {
-        var v = e.stats[k];
-        return '<div><span>' + STAT_NAMES[k] + '</span><b>+' + (v < 1 ? U.pct(v) : v) + '</b></div>';
-      }).join('') + '</div>';
-  };
+  PG.equipDetail = function (e) { return XX.ui.equipDetail(e); };
 
   PG.detail = function (i) {
     var st = XX.store.state, sl = st.bag.slots[i];
@@ -63,7 +54,7 @@ XX.pages.bag = (function () {
       var worn = st.equip.filter(function (x) { return x; }).length;
       html += '<div class="muted small" style="margin-top:8px">已佩戴法宝 ' + worn + ' / ' + st.equip.length + '</div>';
       btns.push({ text: '佩戴', cls: 'primary', onClick: function () {
-        if (inv.firstFreeTreasure() >= 0) { inv.equip(i); XX.ui.toast('已佩戴 ' + it.name, 'ok'); PG.draw(); }
+        if (inv.firstFreeTreasure() >= 0) { inv.equip(i); XX.ui.toast('已佩戴 ' + U.eqName(sl), 'ok'); PG.draw(); }
         else PG.chooseReplace(i);
       } });
     } else {
@@ -73,7 +64,7 @@ XX.pages.bag = (function () {
         if (sl.n > 1 && it.use.kind === 'exp') btns.push({ text: '使用 ×' + Math.min(10, sl.n), onClick: function () { PG.useMsg(inv.use(i, 10)); } });
       }
     }
-    var price = Math.round(it.price * (sl.q != null ? D.equipQualityMul[sl.q] : 1));
+    var price = inv.price(sl);
     btns.unshift({ text: '出售' + (sl.n > 1 ? '1个' : '') + '<small>' + price + '灵石</small>', onClick: function () {
       var got = inv.sell(i, 1); XX.ui.toast('出售获得灵石 ×' + got); PG.draw();
     } });
@@ -87,8 +78,8 @@ XX.pages.bag = (function () {
   PG.chooseReplace = function (i) {
     var st = XX.store.state;
     var html = '<p class="muted small center">法宝位已满,选择要替换的法宝</p><div class="replace-list">' + st.equip.map(function (e, k) {
-      return '<button class="seed" data-k="' + k + '">' + U.itemIcon(e.id, '', e.q) + '<div><b style="color:' + U.qColor(e.q) + '">' + D.items[e.id].name + '</b><div class="muted small">' +
-        Object.keys(e.stats).map(function (s) { var v = e.stats[s]; return STAT_NAMES[s] + '+' + (v < 1 ? U.pct(v) : v); }).join(' ') + '</div></div></button>';
+      return '<button class="seed" data-k="' + k + '">' + U.itemIcon(e.id, '', e.q) + '<div><b style="color:' + U.qColor(e.q) + '">' + U.eqName(e) + '</b> <span class="muted small">' + (e.lv || 0) + '级</span><div class="muted small">' +
+        Object.keys(e.stats).map(function (s) { var v = e.stats[s]; return STAT_NAMES[s] + '+' + (v < 1 ? U.pct(v) : U.num(v)); }).join(' ') + '</div></div></button>';
     }).join('') + '</div>';
     XX.ui.modal({
       title: '替换法宝', html: html, buttons: [{ text: '取消' }],

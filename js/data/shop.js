@@ -18,13 +18,18 @@ XX.data.shop = {
     { item: 'sp_stonebag', n: 1, price: 15, stock: 5, w: 6 },
     { item: 'sp_pouch', n: 1, price: 60, stock: 1, w: 4 },
     { item: 'sp_talisman', n: 1, price: 40, stock: 2, w: 4 },
-    { item: 'sp_jadeslip', n: 1, price: 150, stock: 1, w: 2 },
+    { item: 'gf_changchun', n: 1, price: 60, stock: 1, w: 3 },
+    { item: 'gf_taixuan', n: 1, price: 150, stock: 1, w: 2, reqRealm: 4 },
+    { item: 'st_huoqiu', n: 1, price: 40, stock: 1, w: 3 },
+    { item: 'st_huichun', n: 1, price: 50, stock: 1, w: 3 },
+    { item: 'st_zhangxin', n: 1, price: 100, stock: 1, w: 2, reqRealm: 3 },
+    { item: 'bp_jianxia', n: 1, price: 120, stock: 1, w: 2, reqRealm: 3 },
+    { item: 'bp_qiankun', n: 1, price: 120, stock: 1, w: 2, reqRealm: 3 },
     { item: 'pill_zhuji', n: 1, price: 120, stock: 1, w: 3, reqRealm: 6 },
     { item: 'pill_wudao', n: 1, price: 120, stock: 1, w: 2 },
     { item: 'pill_ningjin', n: 1, price: 300, stock: 1, w: 2, reqRealm: 11 },
     { item: 'pill_huaying', n: 1, price: 600, stock: 1, w: 1, reqRealm: 15 },
-    { item: 'sp_xiling', n: 1, price: 280, stock: 1, w: 1.5 },
-    { item: 'eq_xuantie', n: 1, price: 80, stock: 1, w: 2 },
-    { item: 'eq_ziling', n: 1, price: 80, stock: 1, w: 2 }
+    { item: 'milk_wannian', n: 1, price: 80, stock: 2, w: 2, reqRealm: 15 },
+    { item: 'sp_xiling', n: 1, price: 280, stock: 1, w: 1.5 }
   ]
 };

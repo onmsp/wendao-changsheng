@@ -50,25 +50,53 @@ XX.pages.cave = (function () {
   function craftPanel(kind) {
     var p = K().craftProgress(kind), name = kind === 'alchemy' ? '丹炉' : '器炉';
     var head = '<div class="card furnace ' + kind + '"><img class="furnace-img' + (p ? ' working' : '') + '" src="' + U.img(kind === 'alchemy' ? 'icon/alchemy' : 'icon/forge') + '" alt="">';
-    if (!p) head += '<div class="fz-main"><b>' + name + '空闲</b><div class="muted small">选择下方' + (kind === 'alchemy' ? '丹方' : '器方') + '开炉炼制</div></div></div>';
-    else head += '<div class="fz-main"><b>正在炼制:' + p.recipe.name + '</b><div data-prog="' + kind + '"></div></div>' +
+    if (!p) head += '<div class="fz-main"><b>' + name + '空闲</b><div class="muted small">' + (kind === 'alchemy' ? '选择丹方开炉,可一次批量炼制多炉' : '炼器只能炼制特殊法宝,需先参悟对应图纸') + '</div></div></div>';
+    else head += '<div class="fz-main"><b>正在炼制:' + p.recipe.name + ((p.job.n || 1) > 1 ? ' ×' + p.job.n + ' 炉' : '') + '</b><div data-prog="' + kind + '"></div></div>' +
       '<button class="btn small primary" data-act="collect" data-k="' + kind + '" data-ready="' + kind + '">收取</button></div>';
     var list = K().recipes(kind).map(function (r) {
-      var lock = st().realm < r.reqRealm, enough = XX.sys.inv.hasAll(r.need) && st().stone >= r.stone;
+      var known = K().known(kind, r), lock = st().realm < r.reqRealm, enough = XX.sys.inv.hasAll(r.need) && st().stone >= r.stone;
       var mats = Object.keys(r.need).map(function (id) {
         var have = XX.sys.inv.count(id), ok = have >= r.need[id];
-        return '<span class="mat' + (ok ? '' : ' lack') + '">' + U.itemIcon(id, 'xs') + D.items[id].name + ' ' + have + '/' + r.need[id] + '</span>';
+        return '<span class="mat' + (ok ? '' : ' lack') + '" data-act="iteminfo" data-id="' + id + '">' + U.itemIcon(id, 'xs') + D.items[id].name + ' ' + have + '/' + r.need[id] + '</span>';
       }).join('');
-      return '<div class="card recipe' + (lock ? ' locked' : '') + '"><div class="rc-icon" data-act="iteminfo" data-id="' + r.out[0] + '">' + U.itemIcon(r.out[0]) + '</div>' +
-        '<div class="rc-main"><b>' + U.itemName(r.out[0]) + (r.out[2] > 1 ? ' <span class="muted small">×' + r.out[1] + '~' + r.out[2] + '</span>' : '') + '</b>' +
+      var outName = kind === 'forge' ? '<span style="color:' + U.qColor(3) + '">' + D.items[r.out[0]].name + '</span> <span class="muted small">紫/金 · ' + r.lv + '级</span>' :
+        U.itemName(r.out[0]) + (r.out[2] > 1 ? ' <span class="muted small">×' + r.out[1] + '~' + r.out[2] + '/炉</span>' : '');
+      var reason = !known ? '<span class="danger">需【' + D.items[r.out[0]].name + '图纸】</span>' : lock ? '<span class="danger">需 ' + D.realms[r.reqRealm].name + '</span>' : '';
+      return '<div class="card recipe' + (lock || !known ? ' locked' : '') + '"><div class="rc-icon" data-act="iteminfo" data-id="' + r.out[0] + '">' + U.itemIcon(r.out[0], '', kind === 'forge' ? 3 : null) + '</div>' +
+        '<div class="rc-main"><b>' + outName + '</b>' +
         '<div class="mats">' + mats + '<span class="mat' + (st().stone >= r.stone ? '' : ' lack') + '"><img class="ci" src="' + U.img('icon/lingshi') + '">' + U.num(r.stone) + '</span></div>' +
-        '<div class="muted small">耗时 ' + U.timeCN(r.time) + ' · 成功率 ' + U.pct(K().successRate(kind, r), 0) + (lock ? ' · <span class="danger">需 ' + D.realms[r.reqRealm].name + '</span>' : '') + '</div></div>' +
-        '<button class="btn small primary" data-act="craft" data-k="' + kind + '" data-id="' + r.id + '"' + (lock || !enough || p ? ' disabled' : '') + '>开炉</button></div>';
+        '<div class="muted small">耗时 ' + U.timeCN(r.time) + ' · 成功率 ' + U.pct(K().successRate(kind, r), 0) + (reason ? ' · ' + reason : '') + '</div></div>' +
+        '<button class="btn small primary" data-act="craft" data-k="' + kind + '" data-id="' + r.id + '"' + (lock || !known || !enough || p ? ' disabled' : '') + '>' + (kind === 'alchemy' ? '开炉' : '炼制') + '</button></div>';
     }).join('');
     return head + list;
   }
   PG.draw_alchemy = function () { return craftPanel('alchemy'); };
-  PG.draw_forge = function () { return '<p class="section-tip">炼器品质随机,悟性与气运越高越易出极品。</p>' + craftPanel('forge'); };
+  PG.draw_forge = function () { return '<p class="section-tip">特殊法宝自带固定特殊属性,出炉为紫品,悟性、气运越高越易出金品(额外 1 条特殊属性)。</p>' + craftPanel('forge'); };
+
+  /* 批量开炉 */
+  PG.batchCraft = function (rid) {
+    var r = K().recipe('alchemy', rid), max = K().maxBatch('alchemy', r), n = Math.min(max, 1);
+    if (max < 1) { XX.ui.toast('材料或灵石不足', 'warn'); return; }
+    function body() {
+      return '<div class="batch"><div class="batch-out">' + U.itemIcon(r.out[0], 'lg') + '<div><b>' + U.itemName(r.out[0]) + '</b><div class="muted small">每炉产出 ' + r.out[1] + '~' + r.out[2] + ' · 成功率 ' + U.pct(K().successRate('alchemy', r), 0) + '</div></div></div>' +
+        '<div class="batch-ctrl"><button class="btn small" data-d="-10">-10</button><button class="btn small" data-d="-1">-1</button><b class="batch-n">' + n + '</b><button class="btn small" data-d="1">+1</button><button class="btn small" data-d="10">+10</button><button class="btn small" data-d="max">最大</button></div>' +
+        '<div class="muted small center">最多可炼 ' + max + ' 炉</div>' +
+        '<div class="batch-cost">' + Object.keys(r.need).map(function (id) { return '<span class="mat">' + U.itemIcon(id, 'xs') + D.items[id].name + ' ×' + r.need[id] * n + '</span>'; }).join('') +
+        '<span class="mat"><img class="ci" src="' + U.img('icon/lingshi') + '">' + U.num(r.stone * n) + '</span></div>' +
+        '<div class="center small">总耗时 <b class="ok">' + U.timeCN(K().batchTime(r, n)) + '</b>(批量越多越省时)</div></div>';
+    }
+    XX.ui.modal({
+      title: '批量炼丹', html: '<div id="batch-box">' + body() + '</div>',
+      buttons: [{ text: '取消' }, { text: '开炉', cls: 'primary', onClick: function () { res(K().startCraft('alchemy', rid, n)); } }],
+      onOpen: function (w) {
+        U.$('#batch-box', w).onclick = function (e) {
+          var b = e.target.closest('[data-d]'); if (!b) return;
+          n = b.dataset.d === 'max' ? max : U.clamp(n + (+b.dataset.d), 1, max);
+          U.$('#batch-box', w).innerHTML = body();
+        };
+      }
+    });
+  };
 
   /* ---------- 灵田 ---------- */
   PG.draw_field = function () {
@@ -136,8 +164,12 @@ XX.pages.cave = (function () {
     var b = e.target.closest('[data-act]'); if (!b || b.disabled) return;
     var act = b.dataset.act;
     if (act === 'arr') res(K().upgradeArray(b.dataset.id));
-    else if (act === 'craft') res(K().startCraft(b.dataset.k, b.dataset.id));
-    else if (act === 'collect') res(K().collectCraft(b.dataset.k));
+    else if (act === 'craft') { if (b.dataset.k === 'alchemy') PG.batchCraft(b.dataset.id); else res(K().startCraft('forge', b.dataset.id)); }
+    else if (act === 'collect') {
+      var cr = K().collectCraft(b.dataset.k);
+      if (cr.eq) XX.ui.modal({ title: '神兵出炉', html: XX.ui.equipDetail(cr.eq) }); else XX.ui.toast(cr.msg, cr.ok ? 'ok' : 'warn');
+      PG.draw();
+    }
     else if (act === 'iteminfo') XX.ui.modal({ title: '物品详情', html: XX.ui.itemInfo(b.dataset.id) });
     else if (act === 'unlock') res(K().unlockPlot());
     else if (act === 'plant') PG.chooseSeed(+b.dataset.i);

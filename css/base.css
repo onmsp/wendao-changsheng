@@ -213,3 +213,19 @@ img { -webkit-user-drag: none; user-select: none; }
 @media (min-width: 520px) and (min-height: 700px) {
   #app { height: min(100dvh, 940px); top: 50%; transform: translateY(-50%); border-radius: 18px; }
 }
+
+/* ---------- 大图查看器 ---------- */
+.viewer { position: absolute; inset: 0; z-index: 300; background: rgba(2, 4, 10, .96); display: flex; flex-direction: column; opacity: 0; transition: opacity .2s; }
+.viewer.show { opacity: 1; }
+.viewer.out { opacity: 0; }
+.viewer-top { display: flex; justify-content: space-between; align-items: center; padding: calc(8px + env(safe-area-inset-top)) 12px 8px; color: var(--gold-2); font-family: var(--font-title); font-size: 18px; letter-spacing: 2px; }
+.viewer-x { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--gold); background: rgba(20, 30, 50, .8); color: var(--gold-2); font-size: 22px; cursor: pointer; }
+.viewer-stage { flex: 1; overflow: hidden; display: flex; align-items: center; justify-content: center; touch-action: none; cursor: grab;
+  background: radial-gradient(circle at 50% 50%, rgba(95, 208, 166, .12), transparent 70%); }
+.viewer-stage img { max-width: 100%; max-height: 100%; object-fit: contain; transform-origin: center center; user-select: none; -webkit-user-drag: none; }
+.viewer-tip { text-align: center; font-size: 11px; color: var(--muted); padding: 6px 0 calc(10px + env(safe-area-inset-bottom)); }
+.float-text.heal { color: #8dffb0; }
+.affix-list { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.affix { font-size: 13px; padding: 4px 8px; border-radius: 6px; background: rgba(0, 0, 0, .3); }
+.affix.q3 { color: #d6a8ff; border-left: 2px solid #c58cff; }
+.affix.q4 { color: #ffd76a; border-left: 2px solid #ffc83d; }

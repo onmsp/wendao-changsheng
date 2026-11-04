@@ -1,6 +1,6 @@
-/* 人物:属性计算、修炼、突破 */
+/* 人物:属性计算、修炼、突破、功法神通栏位 */
 XX.sys.player = (function () {
-  var P = {}, D = XX.data, U = XX.util;
+  var P = {}, D = XX.data, U = XX.util, C = XX.config;
   function st() { return XX.store.state; }
 
   P.tpl = function () { return D.characters.filter(function (c) { return c.id === st().charId; })[0] || D.characters[0]; };
@@ -12,16 +12,53 @@ XX.sys.player = (function () {
     var def = D.arrays.filter(function (a) { return a.id === id; })[0];
     return def ? def.per * P.arrayLv(id) : 0;
   };
-  P.img = function (kind, id) { return U.img('char/' + (id || st().charId) + '_' + kind); };
+  /* 角色图片:kind = stand/med/avatar/bidle/bwind/batk/bcast/bhurt;hd = 高清原图 */
+  P.img = function (kind, id, hd) { return U.img('char/' + (hd ? 'hd/' : '') + (id || st().charId) + '_' + kind); };
 
-  /* 修炼速度倍率 */
-  P.rateMul = function () {
-    var r = P.realm();
-    return 1 + r.major * D.realmCurve.majorRateBonus + P.arrayVal('juling') + (st().perm.rateBonus || 0);
+  /* ---------- 功法神通 ---------- */
+  P.slots = function () {
+    var major = P.realm().major, rule = C.techniqueSlots[C.techniqueSlots.length - 1];
+    for (var i = 0; i < C.techniqueSlots.length; i++) if (major <= C.techniqueSlots[i].maxMajor) { rule = C.techniqueSlots[i]; break; }
+    return rule;
   };
-  P.rate = function () { return Math.round(P.root().rate * P.rateMul() * 10) / 10; };
+  P.gongfa = function () { var id = st().skills.gongfa; return id ? D.gongfa[id] : null; };
+  P.activeShentong = function () {
+    var n = P.slots().shentong;
+    return st().skills.shentong.slice(0, n).filter(function (x) { return x && D.shentong[x]; });
+  };
 
-  /* 装备属性汇总 */
+  /* 加成汇总:模板天赋 + 功法 + 法宝特殊属性(stat 类) */
+  P.bonus = function () {
+    var sum = {}, add = function (o) { Object.keys(o || {}).forEach(function (k) { sum[k] = (sum[k] || 0) + o[k]; }); };
+    add(P.tpl().bonus);
+    var g = P.gongfa(); if (g) add(g.effects);
+    st().equip.forEach(function (e) {
+      if (!e || !e.affixes) return;
+      e.affixes.forEach(function (a) { if (D.affixes[a.id] && D.affixes[a.id].kind === 'stat') { var o = {}; o[a.id] = a.v; add(o); } });
+    });
+    return sum;
+  };
+  /* 战斗类特殊属性汇总 */
+  P.battleAffix = function () {
+    var sum = {};
+    st().equip.forEach(function (e) {
+      if (!e || !e.affixes) return;
+      e.affixes.forEach(function (a) { if (D.affixes[a.id] && D.affixes[a.id].kind === 'battle') sum[a.id] = (sum[a.id] || 0) + a.v; });
+    });
+    return sum;
+  };
+
+  /* 突破累计带来的修炼速度加成 */
+  P.breakRate = function () {
+    var r = P.realm(), majors = r.major, minors = r.index - majors;
+    return minors * C.breakRateBonus.minor + majors * C.breakRateBonus.major;
+  };
+  P.rateMul = function () {
+    var b = P.bonus();
+    return 1 + P.breakRate() + P.arrayVal('juling') + (st().perm.rateBonus || 0) + (b.rate || 0);
+  };
+  P.rate = function () { return U.trunc2(P.root().rate * P.rateMul()); };
+
   P.equipStats = function () {
     var sum = {};
     st().equip.forEach(function (e) {
@@ -33,7 +70,7 @@ XX.sys.player = (function () {
 
   /* 计算完整属性 */
   P.stats = function () {
-    var s = st(), r = P.realm(), b = P.tpl().bonus, eq = P.equipStats();
+    var s = st(), r = P.realm(), b = P.bonus(), eq = P.equipStats();
     var g = function (o, k) { return o[k] || 0; };
     var hp = (r.stats.hp + g(eq, 'hp')) * (1 + g(b, 'hpPct') + (s.perm.hpPct || 0) + P.arrayVal('jinguang'));
     var mp = (r.stats.mp + g(eq, 'mp')) * (1 + g(b, 'mpPct'));
@@ -47,95 +84,90 @@ XX.sys.player = (function () {
       crit: U.clamp(0.05 + g(b, 'crit') + g(eq, 'crit') + sense / 10 * 0.005, 0, 0.75),
       critDmg: 1.5 + g(b, 'critDmg') + g(eq, 'critDmg'),
       dodge: U.clamp(0.02 + g(b, 'dodge') + g(eq, 'dodge') + spd * 0.0004, 0, 0.4),
-      comprehension: 5 + g(b, 'comprehension') + (s.perm.comprehension || 0),
-      luck: 5 + g(b, 'luck'),
+      comprehension: Math.round(5 + g(b, 'comprehension') + (s.perm.comprehension || 0)),
+      luck: Math.round(5 + g(b, 'luck')),
       rate: P.rate(),
       lifespan: r.lifespan
     };
   };
 
-  /* 战力 */
   P.power = function () {
     var s = P.stats();
     return Math.round(s.hp * 0.2 + s.mp * 0.1 + s.atk * 2 + s.def * 1.5 + s.spd + s.sense + s.crit * 500 + s.dodge * 500);
   };
 
   P.expNeed = function () { return P.realm().expNeed; };
+  P.canBreak = function () { return !!P.nextRealm() && st().exp >= P.expNeed(); };
+  P.isFull = P.canBreak;
 
-  /* 增加修为;修为圆满后停留在上限,需手动突破。返回实际增加量 */
+  /* 修为可无限累积,保留两位小数 */
   P.addExp = function (v) {
-    var s = st(), need = P.expNeed(), before = s.exp;
-    s.exp = Math.min(need, s.exp + v);
-    return s.exp - before;
+    var s = st(), before = s.exp;
+    s.exp = U.trunc2(s.exp + v);
+    return U.trunc2(s.exp - before);
   };
-  P.isFull = function () { return st().exp >= P.expNeed(); };
 
-  /* 定时修炼结算:每 3 秒一次 */
   P.tick = function (now) {
-    var s = st(), ms = XX.config.tickMs;
+    var s = st(), ms = C.tickMs;
     var n = Math.floor((now - s.lastTick) / ms);
     if (n <= 0) return 0;
     s.lastTick += n * ms;
     return P.addExp(n * P.rate());
   };
 
-  /* 离线收益(返回秒数与修为) */
   P.offline = function () {
     var s = st(), now = Date.now();
-    var cap = XX.config.offlineCapHours * 3600 * 1000;
+    var cap = C.offlineCapHours * 3600 * 1000;
     var elapsed = now - s.lastTick;
     if (elapsed > cap) { s.lastTick = now - cap; elapsed = cap; }
-    var before = { realm: s.realm, exp: s.exp };
     var gain = P.tick(now);
-    return { sec: elapsed / 1000, gain: gain, before: before };
+    return { sec: elapsed / 1000, gain: gain };
   };
 
   P.breakInfo = function () {
     var s = st(), next = P.nextRealm();
     if (!next) return { max: true };
     var info = { next: next, ready: s.exp >= P.expNeed(), major: next.isMajorGate };
-    var luck = P.stats().luck;
-    info.luckBonus = luck * 0.01;
+    info.luckBonus = P.stats().luck * 0.01;
+    info.base = next.baseChance;
+    info.rateGain = info.major ? C.breakRateBonus.major : C.breakRateBonus.minor;
     if (info.major) {
       info.pill = next.pill;
       info.havePill = XX.sys.inv.count(next.pill) > 0;
       info.talisman = s.buffs.breakBonus || 0;
       info.chance = U.clamp(next.baseChance + info.luckBonus + info.talisman, 0.05, 0.95);
     } else info.chance = U.clamp(next.baseChance + info.luckBonus, 0.05, 0.99);
-    info.base = next.baseChance;
     return info;
   };
 
-  /* 手动突破 */
+  /* 手动突破:消耗本境界所需修为,多余修为保留 */
   P.breakthrough = function () {
-    var s = st(), info = P.breakInfo();
+    var s = st(), info = P.breakInfo(), need = P.expNeed();
     if (info.max) return { ok: false, msg: '已至巅峰,前路唯有飞升。' };
     if (!info.ready) return { ok: false, msg: '修为不足,尚需继续积累。' };
-    if (!info.major) {
-      if (Math.random() < info.chance) {
-        s.exp = 0; s.realm++;
-        XX.store.addLog('冲关成功,突破至「' + P.realm().name + '」。');
-        XX.bus.emit('realm');
-        return { ok: true, msg: '突破成功!晋升 ' + P.realm().name };
-      }
-      s.exp = Math.floor(s.exp * 0.9);
-      XX.store.addLog('冲击「' + info.next.name + '」失败,灵气逸散,修为损失一成。');
-      return { ok: false, fail: true, msg: '突破失败……修为损失一成,稳固后再试。' };
+    if (info.major) {
+      if (!info.havePill) return { ok: false, msg: '缺少【' + D.items[info.pill].name + '】,无法冲击' + info.next.majorName + '。' };
+      XX.sys.inv.remove(info.pill, 1);
+      s.buffs.breakBonus = 0;
     }
-    if (!info.havePill) return { ok: false, msg: '缺少【' + D.items[info.pill].name + '】,无法冲击' + info.next.majorName + '。' };
-    XX.sys.inv.remove(info.pill, 1);
-    s.buffs.breakBonus = 0;
     if (Math.random() < info.chance) {
-      s.exp = 0; s.realm++;
-      var jade = 20 * P.realm().major;
-      s.jade += jade;
-      XX.store.addLog('天地异象!成功突破至「' + P.realm().name + '」,获赠仙玉 ' + jade + '。');
+      var slotsBefore = P.slots().shentong;
+      s.exp = U.trunc2(s.exp - need); s.realm++;
+      var msg = '突破成功!晋升 ' + P.realm().name + ',修炼速度永久 +' + U.pct(info.rateGain, 0);
+      if (info.major) {
+        var jade = 20 * P.realm().major;
+        s.jade += jade;
+        msg += ',获得仙玉 ×' + jade;
+        if (P.slots().shentong > slotsBefore) msg += ',神通栏位增加至 ' + P.slots().shentong + ' 个!';
+      }
+      XX.store.addLog((info.major ? '天地异象!' : '') + '突破至「' + P.realm().name + '」,修炼速度 +' + U.pct(info.rateGain, 0) + '。');
       XX.bus.emit('realm');
-      return { ok: true, big: true, msg: '大境界突破成功!晋升 ' + P.realm().name + ',获得仙玉 ×' + jade };
+      return { ok: true, big: info.major, msg: msg };
     }
-    s.exp = Math.floor(s.exp * 0.7);
-    XX.store.addLog('冲击' + info.next.majorName + '失败,经脉受损,修为倒退三成。');
-    return { ok: false, fail: true, msg: '突破失败……修为倒退三成,丹药已耗。' };
+    var loss = U.trunc2(need * (info.major ? 0.3 : 0.1));
+    s.exp = Math.max(0, U.trunc2(s.exp - loss));
+    XX.store.addLog('冲击「' + info.next.name + '」失败,损失修为 ' + U.exp(loss) + '。');
+    return { ok: false, fail: true, msg: '突破失败……损失修为 ' + U.exp(loss) + (info.major ? ',丹药已耗' : '') };
   };
 
   return P;

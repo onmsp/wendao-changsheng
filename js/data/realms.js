@@ -20,8 +20,7 @@ XX.data.realmCurve = {
   expBase: 100, expGrow: 1.32,          // 每层所需修为 = expBase * expGrow^index
   hp: [120, 1.18], mp: [60, 1.15],
   atk: [16, 1.17], def: [6, 1.17],
-  spd: [10, 2], sense: [10, 3],         // 线性:base + index * k
-  majorRateBonus: 0.25                  // 每个大境界额外提升修炼速度 25%
+  spd: [10, 2], sense: [10, 3]          // 线性:base + index * k
 };
 
 (function buildRealms() {
