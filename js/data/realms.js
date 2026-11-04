@@ -17,7 +17,15 @@ XX.data.realmMajors = [
 
 /* 数值曲线(可调) */
 XX.data.realmCurve = {
-  expBase: 100, expGrow: 1.32,          // 每层所需修为 = expBase * expGrow^index
+  /*
+   * 每层突破所需修为(按境界序号)。已按"重度玩家约 5.5 天、普通玩家约 7~8 天到元婴"调校:
+   * 炼气 ≈ 28.5 万,筑基 ≈ 106 万,金丹 ≈ 260 万;超出表格的境界按 expGrowAfter 递增
+   */
+  expTable: [300, 800, 2000, 5000, 12000, 25000, 45000, 75000, 120000,
+    180000, 230000, 290000, 360000,
+    500000, 600000, 700000, 800000,
+    1000000, 1250000, 1500000, 1800000],
+  expGrowAfter: 1.3,
   hp: [120, 1.18], mp: [60, 1.15],
   atk: [16, 1.17], def: [6, 1.17],
   spd: [10, 2], sense: [10, 3]          // 线性:base + index * k
@@ -34,7 +42,7 @@ XX.data.realmCurve = {
         isMajorGate: si === 0 && mi > 0,      // 突破进入此境界需要大境界突破
         pill: si === 0 ? m.pill : null,
         baseChance: si === 0 && mi > 0 ? m.baseChance : Math.max(0.6, 0.92 - mi * 0.04), // 小境界基础成功率随大境界递减
-        expNeed: Math.round(c.expBase * Math.pow(c.expGrow, idx)),
+        expNeed: c.expTable[idx] || Math.round(c.expTable[c.expTable.length - 1] * Math.pow(c.expGrowAfter, idx - c.expTable.length + 1)),
         lifespan: m.lifespan,
         stats: {
           hp: Math.round(c.hp[0] * Math.pow(c.hp[1], idx)),

@@ -27,7 +27,7 @@ XX.sys.shop = (function () {
     S.ensure();
     return st().shop.offers.map(function (pi, slot) {
       var o = D.shop.pool[pi];
-      return { slot: slot, o: o, left: o.stock - (st().shop.bought[slot] || 0) };
+      return { slot: slot, o: o, price: D.shopPrice(o), left: o.stock - (st().shop.bought[slot] || 0) };
     });
   };
 
@@ -36,9 +36,10 @@ XX.sys.shop = (function () {
     var o = D.shop.pool[st().shop.offers[slot]];
     var left = o.stock - (st().shop.bought[slot] || 0);
     if (left <= 0) return { ok: false, msg: '本期已售罄' };
-    if (st().jade < o.price) return { ok: false, msg: '仙玉不足' };
+    var price = D.shopPrice(o);
+    if (st().jade < price) return { ok: false, msg: '仙玉不足' };
     if (!XX.sys.inv.canAdd(o.item, o.n)) return { ok: false, msg: '储物袋空间不足' };
-    st().jade -= o.price;
+    st().jade -= price;
     st().shop.bought[slot] = (st().shop.bought[slot] || 0) + 1;
     XX.sys.inv.add(o.item, o.n);
     return { ok: true, msg: '购得 ' + D.items[o.item].name + ' ×' + o.n };

@@ -44,18 +44,28 @@ XX.data.items = {
 
   /* ---------- 种子 ---------- */
   seed_ninglu: { name: '凝露草种', type: 'material', icon: 'item/herb', hue: 50, badge: '种', q: 0, price: 2, desc: '种于灵田,可收获凝露草。' },
-  seed_zhu: { name: '朱果种', type: 'material', icon: 'item/fruit', hue: 40, badge: '种', q: 1, price: 6, desc: '种于灵田,可收获朱果。' },
-  seed_chiyan: { name: '赤炎花种', type: 'material', icon: 'item/herb', hue: 240, badge: '种', q: 1, price: 6, desc: '种于灵田,可收获赤炎花。' },
-  seed_ziyun: { name: '紫云芝孢', type: 'material', icon: 'item/herb', hue: 160, badge: '种', q: 2, price: 20, desc: '种于灵田,可收获紫云芝。' },
+  seed_zhu: { name: '朱果种', type: 'material', icon: 'item/fruit', hue: 40, badge: '种', q: 1, price: 6, desc: '种于灵田(需灵田 3 级),可收获朱果。' },
+  seed_chiyan: { name: '赤炎花种', type: 'material', icon: 'item/herb', hue: 240, badge: '种', q: 1, price: 6, desc: '种于灵田(需灵田 3 级),可收获赤炎花。' },
+  seed_ziyun: { name: '紫云芝孢', type: 'material', icon: 'item/herb', hue: 160, badge: '种', q: 2, price: 20, desc: '种于灵田(需灵田 5 级),可收获紫云芝。' },
 
-  /* ---------- 丹药 ---------- */
-  pill_juqi: { name: '聚气丹', type: 'pill', icon: 'item/pill_red', q: 0, price: 10, desc: '服用后立即获得当前境界所需修为的 10%(至少 60 点)。', use: { kind: 'exp', pct: 0.10, min: 60 } },
-  pill_yangyuan: { name: '养元丹', type: 'pill', icon: 'item/pill_red', hue: 200, q: 1, price: 40, desc: '服用后立即获得当前境界所需修为的 30%。', use: { kind: 'exp', pct: 0.30, min: 200 } },
-  pill_ningyuan: { name: '凝元丹', type: 'pill', icon: 'item/pill_red', hue: 280, q: 3, price: 400, desc: '元婴修士常用,服用后获得当前境界所需修为的 50%。', use: { kind: 'exp', pct: 0.50, min: 1000 } },
-  pill_peiyuan: { name: '培元丹', type: 'pill', icon: 'item/bottle', q: 1, price: 30, desc: '固本培元,永久提升气血 1%(累计上限 50%)。', use: { kind: 'perm', key: 'hpPct', add: 0.01, cap: 0.5 } },
-  pill_wudao: { name: '悟道丹', type: 'pill', icon: 'item/pill_gold', hue: 120, q: 3, price: 300, desc: '明心见性,永久提升悟性 1 点(累计上限 30)。', use: { kind: 'perm', key: 'comprehension', add: 1, cap: 30 } },
-  pill_zhuji: { name: '筑基丹', type: 'pill', icon: 'item/pill_gold', q: 2, price: 200, desc: '突破至筑基期所必需。突破时自动服用。', use: { kind: 'break' } },
-  pill_ningjin: { name: '凝金丹', type: 'pill', icon: 'item/pill_gold', hue: 25, q: 3, price: 600, desc: '凝结金丹所必需。突破时自动服用。', use: { kind: 'break' } },
+  /* ---------- 丹药 ----------
+   * use.kind:exp 加修为(amount 固定值) / timed 限时增益(key: rate 修炼速度、atk 攻击、def 防御;v 数值;min 分钟)
+   *           perm 永久属性 / buff 下次突破加成 / root 灵根提升 / break 突破丹(突破时自动服用)
+   */
+  pill_juqi: { name: '聚气丹', type: 'pill', icon: 'item/pill_red', q: 0, price: 5, desc: '服用后立即获得 100 点修为。', use: { kind: 'exp', amount: 100 } },
+  pill_julingsan: { name: '聚灵散', type: 'pill', icon: 'item/bottle', hue: 120, q: 0, price: 12, desc: '30 分钟内修炼速度 +15%(多颗可叠加时长)。', use: { kind: 'timed', key: 'rate', v: 0.15, min: 30 } },
+  pill_yangyuan: { name: '养元丹', type: 'pill', icon: 'item/pill_red', hue: 200, q: 1, price: 40, desc: '服用后立即获得 800 点修为。', use: { kind: 'exp', amount: 800 } },
+  pill_peiyuan: { name: '培元丹', type: 'pill', icon: 'item/bottle', q: 1, price: 40, desc: '固本培元,永久提升气血 1%(累计上限 50%)。', use: { kind: 'perm', key: 'hpPct', add: 0.01, cap: 0.5 } },
+  pill_jingang: { name: '金刚丹', type: 'pill', icon: 'item/pill_gold', hue: 60, q: 1, price: 35, desc: '60 分钟内防御 +25%。', use: { kind: 'timed', key: 'def', v: 0.25, min: 60 } },
+  pill_kuangxue: { name: '狂血丹', type: 'pill', icon: 'item/pill_red', hue: 330, q: 2, price: 120, desc: '60 分钟内攻击 +25%。', use: { kind: 'timed', key: 'atk', v: 0.25, min: 60 } },
+  pill_julingdan: { name: '聚灵丹', type: 'pill', icon: 'item/bottle', hue: 200, q: 2, price: 200, desc: '60 分钟内修炼速度 +30%(与聚灵散不叠加,取较高者)。', use: { kind: 'timed', key: 'rate', v: 0.3, min: 60 } },
+  pill_pojing: { name: '破境丹', type: 'pill', icon: 'item/pill_gold', hue: 280, q: 2, price: 250, desc: '特殊丹药。服用后下一次大境界突破成功率 +15%(可叠加至 45%)。', use: { kind: 'buff', key: 'breakBonus', add: 0.15, cap: 0.45 } },
+  pill_ningyuan: { name: '凝元丹', type: 'pill', icon: 'item/pill_red', hue: 280, q: 3, price: 600, desc: '服用后立即获得 6000 点修为。', use: { kind: 'exp', amount: 6000 } },
+  pill_wudao: { name: '悟道丹', type: 'pill', icon: 'item/pill_gold', hue: 120, q: 3, price: 800, desc: '特殊丹药。明心见性,永久提升悟性 1 点(累计上限 20)。', use: { kind: 'perm', key: 'comprehension', add: 1, cap: 20 } },
+  pill_fuyuan: { name: '福缘丹', type: 'pill', icon: 'item/pill_gold', hue: 200, q: 3, price: 800, desc: '特殊丹药。永久提升气运 1 点(累计上限 10),气运影响突破与掉落。', use: { kind: 'perm', key: 'luck', add: 1, cap: 10 } },
+  pill_xisui: { name: '洗髓丹', type: 'pill', icon: 'item/pill_gold', hue: 170, q: 4, price: 3000, desc: '特殊丹药。洗筋伐髓,灵根提升一阶(五色→四色→三色→两色→单色)。', use: { kind: 'root' } },
+  pill_zhuji: { name: '筑基丹', type: 'pill', icon: 'item/pill_gold', q: 1, price: 200, desc: '突破至筑基期所必需。突破时自动服用。', use: { kind: 'break' } },
+  pill_ningjin: { name: '凝金丹', type: 'pill', icon: 'item/pill_gold', hue: 25, q: 2, price: 600, desc: '凝结金丹所必需。突破时自动服用。', use: { kind: 'break' } },
   pill_huaying: { name: '化婴丹', type: 'pill', icon: 'item/pill_gold', hue: 80, q: 3, price: 1500, desc: '碎丹成婴所必需。突破时自动服用。', use: { kind: 'break' } },
   pill_ningshen: { name: '凝神丹', type: 'pill', icon: 'item/pill_gold', hue: 150, q: 4, price: 4000, desc: '元神化形所必需。突破时自动服用。', use: { kind: 'break' } },
   pill_lianxu: { name: '炼虚丹', type: 'pill', icon: 'item/pill_gold', hue: 200, q: 4, price: 9000, desc: '炼神返虚所必需。突破时自动服用。', use: { kind: 'break' } },
@@ -64,8 +74,8 @@ XX.data.items = {
   pill_dujie: { name: '渡劫丹', type: 'pill', icon: 'item/pill_gold', hue: 330, q: 4, price: 99999, desc: '直面天劫所必需。突破时自动服用。', use: { kind: 'break' } },
 
   /* ---------- 特殊(一件一格) ---------- */
-  sp_pouch: { name: '储物袋', type: 'special', icon: 'item/pouch', q: 2, price: 100, desc: '使用后背包容量永久 +10 格。', use: { kind: 'bag', add: 10 } },
-  sp_talisman: { name: '破境符', type: 'special', icon: 'item/talisman', q: 2, price: 150, desc: '使用后,下一次大境界突破成功率 +15%(可叠加至 45%)。', use: { kind: 'buff', key: 'breakBonus', add: 0.15, cap: 0.45 } },
+  sp_pouch: { name: '储物袋', type: 'special', icon: 'item/pouch', q: 2, price: 100, desc: '使用后背包容量永久 +10 格。扩展上限 200 格,元婴之后每个大境界上限 +50。', use: { kind: 'bag', add: 10 } },
+  sp_talisman: { name: '破境符', type: 'special', icon: 'item/talisman', q: 1, price: 150, desc: '使用后,下一次大境界突破成功率 +15%(可叠加至 45%)。', use: { kind: 'buff', key: 'breakBonus', add: 0.15, cap: 0.45 } },
   sp_stonebag: { name: '灵石袋', type: 'special', icon: 'item/pouch', hue: 180, q: 1, price: 50, desc: '打开可获得 1000 × (大境界+1) 灵石。', use: { kind: 'stone', base: 1000 } },
   sp_xiling: { name: '洗灵液', type: 'special', icon: 'item/gourd', q: 4, price: 1000, desc: '洗筋伐髓,重塑灵根。使用后灵根提升一阶(五色→四色→三色→两色→单色)。', use: { kind: 'root' } },
 

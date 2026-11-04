@@ -30,7 +30,7 @@ XX.pages.bag = (function () {
   PG.draw = function () {
     if (!root) return;
     var bag = XX.store.state.bag, html = '';
-    U.$('#bag-cap').textContent = bag.slots.length + ' / ' + bag.cap;
+    U.$('#bag-cap').textContent = bag.slots.length + ' / ' + bag.cap + '(可扩展至 ' + XX.sys.player.bagMax() + ')';
     bag.slots.forEach(function (sl, i) {
       var it = D.items[sl.id];
       if (filter !== 'all' && it.type !== filter) return;
@@ -61,7 +61,7 @@ XX.pages.bag = (function () {
       html = XX.ui.itemInfo(sl.id, sl.n ? '<div class="muted small">持有:' + inv.count(sl.id) + '</div>' : '');
       if (it.use && it.use.kind !== 'break') {
         btns.push({ text: '使用', cls: 'primary', onClick: function () { PG.useMsg(inv.use(i, 1)); } });
-        if (sl.n > 1 && it.use.kind === 'exp') btns.push({ text: '使用 ×' + Math.min(10, sl.n), onClick: function () { PG.useMsg(inv.use(i, 10)); } });
+        if (sl.n > 1 && (it.use.kind === 'exp' || it.use.kind === 'timed')) btns.push({ text: '使用 ×' + Math.min(10, sl.n), onClick: function () { PG.useMsg(inv.use(i, 10)); } });
       }
     }
     var price = inv.price(sl);

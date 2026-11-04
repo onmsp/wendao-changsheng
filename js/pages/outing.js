@@ -22,9 +22,10 @@ XX.pages.outing = (function () {
   };
 
   /* ---------- 掉落详情弹窗(点击物品可查看介绍)---------- */
-  function dropHtml(drops, table, lvText) {
-    var html = '<div class="drop-title">可能掉落</div><div class="drop-grid">' + drops.filter(function (d) { return D.items[d[0]]; }).map(function (d) {
-      return '<button class="drop" data-item="' + d[0] + '">' + U.itemIcon(d[0], 'sm') + '<span>' + U.itemName(d[0]) + '</span><em>' + U.pct(d[1], d[1] < 0.01 ? 1 : 0) + '</em></button>';
+  function dropHtml(drops, table, lvText, isSecret) {
+    var html = '<div class="drop-title">可能掉落' + (isSecret ? '<span class="muted small">(品阶越高越难获得)</span>' : '') + '</div><div class="drop-grid">' + drops.filter(function (d) { return D.items[d[0]]; }).map(function (d) {
+      var p = XX.sys.battle.dropChance(d, isSecret);
+      return '<button class="drop" data-item="' + d[0] + '">' + U.itemIcon(d[0], 'sm') + '<span>' + U.itemName(d[0]) + '</span><em>' + U.pct(p, p < 0.01 ? 2 : p < 0.1 ? 1 : 0) + '</em></button>';
     }).join('') + '</div>';
     html += '<div class="drop-title">法宝掉落(' + lvText + ')</div><div class="tq-row">' + table.map(function (p, q) {
       var Q = C.qualities[q];
@@ -45,7 +46,7 @@ XX.pages.outing = (function () {
     }).join('') + '</div>' +
       '<div class="small">需求境界:<b class="' + (lock ? 'danger' : 'ok') + '">' + D.realms[a.reqRealm].name + '</b>' +
       (isSecret ? ' · ' + a.floors.length + ' 层 · 通关仙玉 ' + a.reward.jade[0] + '~' + a.reward.jade[1] : ' · 灵石 ' + a.stone[0] + '~' + a.stone[1]) + '</div>' +
-      dropHtml(a.drops, isSecret ? C.treasureDrop.secret : C.treasureDrop.dungeon, (isSecret ? a.power + 1 : a.power) + ' 级');
+      dropHtml(a.drops, isSecret ? C.treasureDrop.secret : C.treasureDrop.dungeon, (isSecret ? a.power + 1 : a.power) + ' 级', isSecret);
     XX.ui.modal({
       title: a.name, html: html, cls: 'area-modal',
       buttons: [{ text: '关闭' }, { text: isSecret ? '进入秘境' : '前往历练', cls: 'primary', disabled: lock, onClick: function () {
@@ -128,13 +129,19 @@ XX.pages.outing = (function () {
         setBars(ev.pHp, fight.pMax, ev.pMp, fight.pMaxMp, ev.mHp, fight.monster.maxHp);
         if (ev.actor === 'p') {
           var sk = ev.skill && D.shentong[ev.skill];
-          var t = sk ? '你施展神通【' + sk.name + '】' : '你' + (ev.double ? '连击' : '出手');
-          if (!(sk && sk.type === 'heal')) t += ',' + hitsText(ev);
+          var t = sk ? '你施展神通【' + sk.name + (ev.lv > 1 ? '·' + ev.lv + '级' : '') + '】' : '你' + (ev.double ? '连击' : '出手');
+          if (ev.hits.length) t += ',' + hitsText(ev);
           if (ev.heal) t += ',回复气血 <b class="ok">' + U.num(ev.heal) + '</b>';
+          if (ev.shield) t += ',获得护盾 <b class="ok">' + U.num(ev.shield) + '</b>';
+          if (ev.status && ev.status.length) t += ' <span class="st-tag">' + ev.status.join(' ') + '</span>';
           logLine(t);
         } else {
+          var pre = ev.dot ? fight.monster.name + '受灼烧 <b>' + U.num(ev.dot) + '</b>' + (ev.dotKill ? ',化为灰烬!' : ';') : '';
+          if (ev.dotKill) { logLine(pre); return; }
+          if (ev.stunned) { logLine(pre + fight.monster.name + '陷入眩晕,无法行动', 'muted'); return; }
           var h = ev.hits[0];
-          logLine(h.dodge ? '你身形一闪,躲开了' + fight.monster.name + '的攻击' : fight.monster.name + (ev.beast ? '妖力爆发,狂暴扑击' : '扑击') + ',你受到 <b class="hurt">' + U.num(h.dmg) + '</b> 伤害' + (ev.reflect ? ',反震 <b>' + U.num(ev.reflect) + '</b>' : ''), h.dodge ? 'muted' : '');
+          logLine(pre + (h.dodge ? '你身形一闪,躲开了' + fight.monster.name + '的攻击' : fight.monster.name + (ev.beast ? '妖力爆发,狂暴扑击' : '扑击') + ',你受到 <b class="hurt">' + U.num(h.dmg - (ev.absorb || 0)) + '</b> 伤害' +
+            (ev.absorb ? '(护盾抵挡 ' + U.num(ev.absorb) + ')' : '') + (ev.reflect ? ',反震 <b>' + U.num(ev.reflect) + '</b>' : '')), h.dodge ? 'muted' : '');
         }
       },
       done: done

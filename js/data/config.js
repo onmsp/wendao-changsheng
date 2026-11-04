@@ -3,10 +3,11 @@ window.XX = window.XX || { data: {}, sys: {}, pages: {}, screens: {} };
 
 XX.config = {
   gameName: '问道长生',
-  version: '0.1.2',
+  version: '0.1.3',
   saveKey: 'wendao_changsheng_save',
   tickMs: 3000,            // 修炼结算周期:每 3 秒
   bagCapacity: 50,         // 初始背包格子
+  bagMax: { base: 200, perMajorAfter: 3, add: 50 },  // 背包扩展上限:200;元婴(大境界3)之后每个大境界 +50
   stackMax: 99,            // 普通物品每格上限
   shopRefreshHours: 12,    // 商城刷新周期(小时)
   offlineCapHours: 12,     // 离线收益上限(小时)
@@ -42,5 +43,9 @@ XX.config = {
     dungeon: [0.10, 0.05, 0.02, 0.005, 0],   // 历练副本:白 绿 蓝 紫 金
     secret: [0, 0, 0, 0.20, 0.10]            // 秘境:紫 20% 金 10%
   },
-  affixCount: [0, 0, 0, 1, 2]                // 各品阶附带特殊属性条数
+  affixCount: [0, 0, 0, 1, 2],               // 各品阶附带特殊属性条数
+  secretTierDropMul: [1, 0.7, 0.45, 0.25, 0.1], // 秘境物品掉率按品阶衰减(白 绿 蓝 紫 金)
+  gongfaBaseRate: [0.05, 0.10, 0.15, 0.22, 0.30], // 功法固定基础属性:修炼速度(按品阶)
+  shentongMaxLv: 5,                          // 神通最高等级(重复参悟玉简升级,每级效果 +10%)
+  caveMaxLv: 10                              // 洞府设施/阵法等级上限
 };

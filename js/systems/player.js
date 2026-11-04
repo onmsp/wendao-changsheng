@@ -31,7 +31,7 @@ XX.sys.player = (function () {
   P.bonus = function () {
     var sum = {}, add = function (o) { Object.keys(o || {}).forEach(function (k) { sum[k] = (sum[k] || 0) + o[k]; }); };
     add(P.tpl().bonus);
-    var g = P.gongfa(); if (g) add(g.effects);
+    if (P.gongfa()) add(D.gongfaEffects(st().skills.gongfa));
     st().equip.forEach(function (e) {
       if (!e || !e.affixes) return;
       e.affixes.forEach(function (a) { if (D.affixes[a.id] && D.affixes[a.id].kind === 'stat') { var o = {}; o[a.id] = a.v; add(o); } });
@@ -55,7 +55,7 @@ XX.sys.player = (function () {
   };
   P.rateMul = function () {
     var b = P.bonus();
-    return 1 + P.breakRate() + P.arrayVal('juling') + (st().perm.rateBonus || 0) + (b.rate || 0);
+    return 1 + P.breakRate() + P.arrayVal('juling') + (st().perm.rateBonus || 0) + (b.rate || 0) + P.timed('rate');
   };
   P.rate = function () { return U.trunc2(P.root().rate * P.rateMul()); };
 
@@ -74,8 +74,8 @@ XX.sys.player = (function () {
     var g = function (o, k) { return o[k] || 0; };
     var hp = (r.stats.hp + g(eq, 'hp')) * (1 + g(b, 'hpPct') + (s.perm.hpPct || 0) + P.arrayVal('jinguang'));
     var mp = (r.stats.mp + g(eq, 'mp')) * (1 + g(b, 'mpPct'));
-    var atk = (r.stats.atk + g(eq, 'atk')) * (1 + g(b, 'atkPct') + P.arrayVal('shafa'));
-    var def = (r.stats.def + g(eq, 'def')) * (1 + g(b, 'defPct') + P.arrayVal('jinguang'));
+    var atk = (r.stats.atk + g(eq, 'atk')) * (1 + g(b, 'atkPct') + P.arrayVal('shafa') + P.timed('atk'));
+    var def = (r.stats.def + g(eq, 'def')) * (1 + g(b, 'defPct') + P.arrayVal('jinguang') + P.timed('def'));
     var spd = (r.stats.spd + g(eq, 'spd')) * (1 + g(b, 'spdPct'));
     var sense = (r.stats.sense + g(eq, 'sense')) * (1 + g(b, 'sensePct'));
     return {
@@ -85,7 +85,7 @@ XX.sys.player = (function () {
       critDmg: 1.5 + g(b, 'critDmg') + g(eq, 'critDmg'),
       dodge: U.clamp(0.02 + g(b, 'dodge') + g(eq, 'dodge') + spd * 0.0004, 0, 0.4),
       comprehension: Math.round(5 + g(b, 'comprehension') + (s.perm.comprehension || 0)),
-      luck: Math.round(5 + g(b, 'luck')),
+      luck: Math.round(5 + g(b, 'luck') + (s.perm.luck || 0)),
       rate: P.rate(),
       lifespan: r.lifespan
     };
@@ -95,6 +95,23 @@ XX.sys.player = (function () {
     var s = P.stats();
     return Math.round(s.hp * 0.2 + s.mp * 0.1 + s.atk * 2 + s.def * 1.5 + s.spd + s.sense + s.crit * 500 + s.dodge * 500);
   };
+
+  /* 限时丹药增益:返回当前生效数值 */
+  P.timed = function (key) {
+    var t = (st().timed || {})[key];
+    return t && t.until > Date.now() ? t.v : 0;
+  };
+  P.timedList = function () {
+    var now = Date.now(), T = st().timed || {}, NAMES = { rate: '修炼速度', atk: '攻击', def: '防御' };
+    return Object.keys(T).filter(function (k) { return T[k].until > now; }).map(function (k) { return { key: k, name: NAMES[k], v: T[k].v, left: (T[k].until - now) / 1000 }; });
+  };
+  /* 背包扩展上限 */
+  P.bagMax = function () {
+    var m = C.bagMax;
+    return m.base + Math.max(0, P.realm().major - m.perMajorAfter) * m.add;
+  };
+  /* 神通等级 */
+  P.stLv = function (id) { return ((st().skills.stLv || {})[id]) || 1; };
 
   P.expNeed = function () { return P.realm().expNeed; };
   P.canBreak = function () { return !!P.nextRealm() && st().exp >= P.expNeed(); };

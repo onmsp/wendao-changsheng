@@ -37,11 +37,14 @@ XX.store = (function () {
       jade: C.start.jade,
       bag: { cap: C.bagCapacity, slots: [] },
       equip: [null, null, null, null],
-      skills: { gongfa: 'yinqi', shentong: [sig, null, null, null], learnedGongfa: ['yinqi'], learnedShentong: sig ? [sig] : [] },
+      skills: { gongfa: 'yinqi', shentong: [sig, null, null, null], learnedGongfa: ['yinqi'], learnedShentong: sig ? [sig] : [], stLv: {} },
       blueprints: {},
+      recipes: {},
+      timed: {},
       perm: { hpPct: 0, comprehension: 0, rateBonus: 0 },
       buffs: { breakBonus: 0 },
       cave: {
+        lv: { alchemy: 1, forge: 1, field: 1, mine: 1 },
         arrays: {},
         alchemy: null,
         forge: null,
@@ -82,12 +85,23 @@ XX.store = (function () {
     st.shop = st.shop || { period: -1, bought: {} };
     st.log = st.log || [];
     st.blueprints = st.blueprints || {};
+    st.recipes = st.recipes || {};
+    st.timed = st.timed || {};
+    /* 0.1.3:洞府设施等级、阵法上限 10、灵田地块由等级决定 */
+    var cv = st.cave;
+    if (!cv.lv) {
+      cv.lv = { alchemy: 1, forge: 1, field: Math.max(1, Math.min(C.caveMaxLv, ((cv.field && cv.field.unlocked) || 3) - 2)), mine: Math.max(1, Math.min(C.caveMaxLv, (cv.mine && cv.mine.lv) || 1)) };
+    }
+    Object.keys(cv.arrays || {}).forEach(function (k) { cv.arrays[k] = Math.min(C.caveMaxLv, cv.arrays[k]); });
+    if (cv.alchemy && cv.alchemy.rid && !D.alchemyRecipes.some(function (r) { return r.id === cv.alchemy.rid; })) cv.alchemy = null;
     st.outing = st.outing || { area: 'qinglan', wins: 0, losses: 0 };
     st.outing.cdUntil = st.outing.cdUntil || 0;
     if (!st.skills) {
       var sig = S.innateSkill(st.charId);
       st.skills = { gongfa: 'yinqi', shentong: [sig, null, null, null], learnedGongfa: ['yinqi'], learnedShentong: sig ? [sig] : [] };
     }
+    st.skills.stLv = st.skills.stLv || {};
+    if (!D.gongfa[st.skills.gongfa]) st.skills.gongfa = 'yinqi';
     if (!st.secret || st.secret.times == null) {
       st.secret = { times: C.secretMaxTimes, last: now, clears: (st.secret && st.secret.clears) || {} };
     }
@@ -111,6 +125,7 @@ XX.store = (function () {
     st.bag.slots = st.bag.slots.map(fix).filter(function (x) { return x; });
     st.equip = st.equip.map(fix);
     st.battleSpeed = st.battleSpeed || 1;
+    if (st.v !== C.version) st.shop = { period: -1, bought: {} };   // 版本更新后商城货架重新生成
     st.v = C.version;
   };
 

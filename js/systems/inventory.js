@@ -132,7 +132,7 @@ XX.sys.inv = (function () {
     switch (u.kind) {
       case 'exp':
         var total = 0;
-        for (var i = 0; i < times; i++) total += P.addExp(Math.max(u.min || 0, P.expNeed() * u.pct));
+        for (var i = 0; i < times; i++) total += P.addExp(u.amount);
         msg = '服下' + it.name + (times > 1 ? ' ×' + times : '') + ',修为 +' + U.exp(total);
         break;
       case 'perm':
@@ -140,8 +140,8 @@ XX.sys.inv = (function () {
         if (cur >= u.cap - 1e-9) return '药力已达上限,无法再获增益。';
         times = Math.min(times, Math.round((u.cap - cur) / u.add));
         s.perm[u.key] = Math.round((cur + u.add * times) * 1000) / 1000;
-        var labels = { hpPct: '气血', comprehension: '悟性', rateBonus: '修炼速度' };
-        msg = it.name + '生效,' + labels[u.key] + ' 永久 +' + (u.key === 'comprehension' ? u.add * times : U.pct(u.add * times));
+        var labels = { hpPct: '气血', comprehension: '悟性', rateBonus: '修炼速度', luck: '气运' };
+        msg = it.name + '生效,' + labels[u.key] + ' 永久 +' + (u.add >= 1 ? u.add * times : U.pct(u.add * times));
         break;
       case 'buff':
         var b = s.buffs[u.key] || 0;
@@ -150,8 +150,25 @@ XX.sys.inv = (function () {
         msg = '破境符燃起金光,下次大境界突破成功率 +' + U.pct(s.buffs[u.key], 0);
         break;
       case 'bag':
-        s.bag.cap += u.add; times = 1;
-        msg = '储物袋容量 +' + u.add + ',当前 ' + s.bag.cap + ' 格';
+        var bmax = P.bagMax();
+        if (s.bag.cap >= bmax) return '储物袋已达当前境界上限 ' + bmax + ' 格' + (P.realm().major < 4 ? '(元婴之后每个大境界上限 +50)' : '') + '。';
+        s.bag.cap = Math.min(bmax, s.bag.cap + u.add); times = 1;
+        msg = '储物袋容量扩展,当前 ' + s.bag.cap + ' / ' + bmax + ' 格';
+        break;
+      case 'timed':
+        s.timed = s.timed || {};
+        var cur2 = s.timed[u.key], now2 = Date.now();
+        if (cur2 && cur2.until > now2 && cur2.v > u.v) return '已有更强的同类药力在身,无需服用。';
+        var from = cur2 && cur2.until > now2 && cur2.v === u.v ? cur2.until : now2;   // 同效药力叠加时长
+        s.timed[u.key] = { v: u.v, until: from + u.min * 60000 * times };
+        msg = '服下' + it.name + (times > 1 ? ' ×' + times : '') + ',' + U.timeCN(u.min * 60 * times) + '内' + { rate: '修炼速度', atk: '攻击', def: '防御' }[u.key] + ' +' + U.pct(u.v, 0);
+        break;
+      case 'recipe':
+        s.recipes = s.recipes || {};
+        if (s.recipes[u.recipe]) return '你已掌握该丹方。';
+        s.recipes[u.recipe] = true; times = 1;
+        msg = '参悟丹方,掌握【' + it.name.replace('丹方', '') + '】炼制之法,可在洞府·炼丹中炼制。';
+        XX.store.addLog(msg);
         break;
       case 'stone':
         var v = u.base * (P.realm().major + 1);
@@ -168,8 +185,17 @@ XX.sys.inv = (function () {
       case 'learn':
         var def = u.cat === 'gongfa' ? D.gongfa[u.id] : D.shentong[u.id];
         var list = u.cat === 'gongfa' ? s.skills.learnedGongfa : s.skills.learnedShentong;
-        if (list.indexOf(u.id) >= 0) return '你已掌握【' + def.name + '】。';
         if (s.realm < (def.reqRealm || 0)) return '境界不足,需达到「' + D.realms[def.reqRealm].name + '」方可参悟。';
+        if (list.indexOf(u.id) >= 0) {
+          if (u.cat === 'gongfa') return '你已掌握【' + def.name + '】,可出售换取灵石。';
+          s.skills.stLv = s.skills.stLv || {};
+          var lv0 = s.skills.stLv[u.id] || 1;
+          if (lv0 >= C.shentongMaxLv) return '【' + def.name + '】已修至圆满(' + C.shentongMaxLv + ' 级)。';
+          s.skills.stLv[u.id] = lv0 + 1; times = 1;
+          msg = '再次参悟,神通【' + def.name + '】提升至 ' + (lv0 + 1) + ' 级!';
+          XX.store.addLog(msg);
+          break;
+        }
         list.push(u.id); times = 1;
         msg = '参悟玉简,习得' + (u.cat === 'gongfa' ? '功法' : '神通') + '【' + def.name + '】!可在人物页装配。';
         XX.store.addLog(msg);

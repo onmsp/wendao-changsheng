@@ -8,7 +8,8 @@ XX.battleView = (function () {
   var U = XX.util, D = XX.data, V = {}, timers = [], el = {}, frames = {}, color = '#9fe0ff', atkFx = 'slash';
   var VFX_BASE_HUE = 190;
   var FXC = { fire: '#ff8a2a', thunder: '#c89bff', heal: '#7dff9a', golden: '#ffd24a', rune: '#ffd24a', foxfire: '#ff8ad0', sound: '#b48cff',
-    twin: '#ff4a5a', leaf: '#7dff6a', mist: '#a060ff', heavy: '#ff5a3a', swords: '#8fd8ff', sun: '#ffb030', drain: '#ff3060' };
+    twin: '#ff4a5a', leaf: '#7dff6a', mist: '#a060ff', heavy: '#ff5a3a', swords: '#8fd8ff', sun: '#ffb030', drain: '#ff3060',
+    shield: '#ffe08a', rage: '#ff3a3a' };
 
   function st() { return XX.store.state; }
   function speed() { return st().battleSpeed || 1; }
@@ -158,6 +159,10 @@ XX.battleView = (function () {
       if (!V.alive()) return;
       if (ev.hits.some(function (h) { return !h.dodge; })) shake(big || ev.hits.some(function (h) { return h.crit; }) ? 11 : 5);
       if (ev.heal) XX.ui.floatText(toFoe ? el.pimg : el.mimg, '+' + U.num(ev.heal), 'heal');
+      if (toFoe && ev.status && ev.status.length) ev.status.forEach(function (t, k) {
+        later(function () { if (V.alive()) XX.ui.floatText(el.mimg, t, 'status'); }, 260 + k * 220);
+      });
+      if (ev.absorb) XX.ui.floatText(el.pimg, '护盾 -' + U.num(ev.absorb), 'dodge');
       if (ev.reflect) XX.ui.floatText(el.mimg, '反震 -' + U.num(ev.reflect), 'dmg');
       if (onImpact) onImpact(ev);
     }, (ev.hits.length - 1) * 120 + 40);
@@ -246,11 +251,11 @@ XX.battleView = (function () {
 
   /* ---------- 玩家神通:掐诀 → 法阵 → 释放 ---------- */
   function playerSkill(ev, onImpact, done) {
-    var def = D.shentong[ev.skill], fx = def.fx, col = fx === 'sword' ? color : (FXC[fx] || color);
+    var def = D.shentong[ev.skill], fx = def.fx, col = fx === 'sword' ? color : (FXC[fx] || color), selfCast = ['heal', 'buff', 'shield'].indexOf(def.type) >= 0;
     var me = el.me, c0 = center(el.pimg), foe = center(el.mimg), hand = { x: c0.x + c0.w * 0.2, y: c0.y - c0.h * 0.12 };
     frame('bcast');
     el.dim.classList.add('on');
-    skillText(def.name, 'me');
+    skillText(def.name + (ev.lv > 1 ? ' ' + ['', '', '贰', '叁', '肆', '伍'][ev.lv] + '重' : ''), 'me');
     sprite('circle', c0.x, c0.bottom - c0.h * 0.06, c0.w * 1.2, [
       { opacity: 0, transform: 'translate(-50%,-50%) scale(.2,.07) rotate(0deg)' }, { opacity: 1, offset: .2, transform: 'translate(-50%,-50%) scale(1,.32) rotate(70deg)' },
       { opacity: 1, offset: .8, transform: 'translate(-50%,-50%) scale(1.05,.34) rotate(250deg)' }, { opacity: 0, transform: 'translate(-50%,-50%) scale(1.2,.4) rotate(320deg)' }
@@ -259,13 +264,21 @@ XX.battleView = (function () {
     move(me, [{ transform: 'translateY(0)' }, { transform: 'translateY(-4%) scale(1.03)' }], 700, 'ease-in-out');
     var R = 760, hitAt = R + 360, big = true, f = foe;
 
-    if (def.type === 'heal') {
+    if (selfCast) {
       later(function () {
         sprite('circle', c0.x, c0.y, c0.w * 1.1, [{ opacity: 0, transform: 'translate(-50%,-50%) scale(.3) rotate(0)' }, { opacity: .9, offset: .4, transform: 'translate(-50%,-50%) scale(1) rotate(90deg)' }, { opacity: 0, transform: 'translate(-50%,-50%) scale(1.2) rotate(180deg)' }], 900, { col: col });
         particles(c0.x, c0.bottom - 20, 26, col, 'rise', c0.h * 0.6, { spread: 400 });
         flash(col, .25);
       }, R);
-      later(function () { if (onImpact) onImpact(ev); XX.ui.floatText(el.pimg, '+' + U.num(ev.heal), 'heal'); }, R + 380);
+      later(function () {
+        if (!V.alive()) return;
+        if (onImpact) onImpact(ev);
+        if (ev.heal) XX.ui.floatText(el.pimg, '+' + U.num(ev.heal), 'heal');
+        if (ev.shield) later(function () { if (V.alive()) XX.ui.floatText(el.pimg, '护盾 +' + U.num(ev.shield), 'status'); }, 200);
+        (ev.status || []).forEach(function (t, k) { later(function () { if (V.alive()) XX.ui.floatText(el.pimg, t, 'status'); }, 250 + k * 220); });
+        if (ev.shield) el.me.classList.add('shielded');
+        if (def.type === 'buff') { el.pimg.animate([{ filter: 'drop-shadow(0 0 0 #f00)' }, { filter: 'drop-shadow(0 0 22px ' + col + ') brightness(1.3)' }, { filter: 'drop-shadow(0 0 6px ' + col + ')' }], { duration: 700 / speed() }); }
+      }, R + 380);
       later(function () { el.dim.classList.remove('on'); move(me, [{ transform: 'translateY(-4%) scale(1.03)' }, { transform: 'translateY(0) scale(1)' }], 320); frame('bidle'); }, R + 900);
       later(done, R + 1100);
       return;
@@ -348,14 +361,34 @@ XX.battleView = (function () {
   /* ---------- 妖兽:后仰蓄力 → 扑击 → 爪痕 ---------- */
   function monsterAct(ev, onImpact, done) {
     var foe = el.foe, mimg = el.mimg, pre = 0;
-    if (ev.beast) {
+    if (ev.dot) {
+      var cb = center(mimg);
+      particles(cb.x, cb.y, 12, FXC.fire, 'rise', cb.h * 0.5, { spread: 200 });
+      mimg.animate([{ filter: 'brightness(1)' }, { filter: 'brightness(1.6) sepia(1) saturate(4) hue-rotate(-20deg)' }, { filter: 'brightness(1)' }], { duration: 420 / speed() });
+      XX.ui.floatText(mimg, '灼烧 -' + U.num(ev.dot), 'burn');
+      if (onImpact && (ev.dotKill || ev.stunned)) onImpact(ev);
+      if (ev.dotKill) { later(done, 600); return; }
       pre = 520;
+    }
+    if (ev.stunned) {
+      later(function () {
+        if (!V.alive()) return;
+        XX.ui.floatText(mimg, '眩晕中', 'status');
+        mimg.animate([{ transform: 'rotate(0)' }, { transform: 'rotate(-4deg)' }, { transform: 'rotate(4deg)' }, { transform: 'rotate(0)' }], { duration: 500 / speed() });
+        if (!ev.dot && onImpact) onImpact(ev);
+      }, pre);
+      later(done, pre + 700);
+      return;
+    }
+    if (ev.beast) {
+      pre += 520;
       skillText('妖力爆发', 'foe');
       mimg.animate([{ filter: 'drop-shadow(0 0 0 #f00)' }, { filter: 'drop-shadow(0 0 18px #ff3030) brightness(1.3)' }, { filter: 'drop-shadow(0 0 4px #f00)' }, { filter: 'drop-shadow(0 0 22px #ff3030) brightness(1.4)' }], { duration: 520 / speed() });
       var c0 = center(mimg);
       particles(c0.x, c0.y, 14, '#ff4a4a', 'gather', c0.w * 0.7);
     }
     later(function () { move(foe, [{ transform: 'translateX(0)' }, { transform: 'translateX(9%) scale(1.06)' }], 240); }, pre);
+    later(function () { if (el.me && !(ev.pShield > 0)) el.me.classList.remove('shielded'); }, pre + 700);
     later(function () { move(foe, [{ transform: 'translateX(9%) scale(1.06)' }, { transform: 'translateX(-52%) scale(1.1)' }], 170, 'cubic-bezier(.2,.9,.3,1)'); }, pre + 250);
     later(function () {
       if (!V.alive()) return;

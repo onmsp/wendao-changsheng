@@ -27,6 +27,7 @@ XX.pages.character = (function () {
       '<section class="card cultivate">' +
       '  <div class="cult-main"><div class="cult-num"><span class="muted small">修为</span><b id="ch-exp"></b><em id="ch-need"></em></div>' +
       '    <div class="cult-rate"><span class="muted small">吸纳灵气</span><b id="ch-rate"></b></div></div>' +
+      '  <div class="buff-chips" id="ch-buffs"></div>' +
       '  <div class="cult-row"><div class="cult-tip" id="ch-tip"></div><button class="btn primary break-btn" id="ch-break">突 破</button></div>' +
       '</section>' +
       '<section class="card tech-card"><div class="card-title">功法神通<span class="muted small" id="ch-slotinfo"></span></div>' +
@@ -64,12 +65,14 @@ XX.pages.character = (function () {
 
   PG.rateDetail = function () {
     var P = XX.sys.player, st = XX.store.state, r = P.realm();
+    var gfRate = P.gongfa() ? D.gongfaEffects(st.skills.gongfa).rate : 0;
     return '<table class="tbl"><tr><td>灵根基础</td><td>' + P.root().rate + ' 点</td></tr>' +
       '<tr><td>突破累计</td><td>+' + U.pct(P.breakRate(), 0) + '</td></tr>' +
-      '<tr><td>功法【' + (P.gongfa() ? P.gongfa().name : '无') + '】</td><td>+' + U.pct((P.gongfa() && P.gongfa().effects.rate) || 0, 0) + '</td></tr>' +
+      '<tr><td>功法【' + (P.gongfa() ? P.gongfa().name : '无') + '】</td><td>+' + U.pct(gfRate, 0) + '</td></tr>' +
+      (P.timed('rate') ? '<tr><td>丹药药力</td><td>+' + U.pct(P.timed('rate'), 0) + '</td></tr>' : '') +
       '<tr><td>聚灵阵</td><td>+' + U.pct(P.arrayVal('juling'), 0) + '</td></tr>' +
       (st.perm.rateBonus ? '<tr><td>旧版功法残留</td><td>+' + U.pct(st.perm.rateBonus, 0) + '</td></tr>' : '') +
-      '<tr><td>法宝聚灵</td><td>+' + U.pct(P.bonus().rate - ((P.gongfa() && P.gongfa().effects.rate) || 0) || 0, 0) + '</td></tr>' +
+      '<tr><td>法宝聚灵</td><td>+' + U.pct((P.bonus().rate || 0) - gfRate, 0) + '</td></tr>' +
       '<tr><td><b>合计</b></td><td><b>' + P.rate().toFixed(2) + ' 点 / 3 秒</b></td></tr></table>';
   };
 
@@ -110,6 +113,7 @@ XX.pages.character = (function () {
     U.$('#ch-exp').textContent = U.exp(st.exp);
     U.$('#ch-need').textContent = ' / ' + U.exp(need);
     U.$('#ch-rate').textContent = '+' + P.rate().toFixed(2) + ' / 3秒';
+    U.$('#ch-buffs').innerHTML = P.timedList().map(function (b) { return '<span class="buff-chip">' + b.name + ' +' + U.pct(b.v, 0) + ' · ' + U.time(b.left) + '</span>'; }).join('');
     var tip, btn = U.$('#ch-break');
     if (PG._breaking) return;
     if (info.max) { tip = '已臻至境'; btn.disabled = true; }
@@ -201,7 +205,7 @@ XX.pages.character = (function () {
       var id = st.skills.shentong[i], def = id && D.shentong[id], lock = i >= slots.shentong;
       var lockText = i === 2 ? '元婴期解锁' : '渡劫期解锁';
       html += '<button class="tech' + (lock ? ' locked' : '') + '" data-cat="shentong" data-i="' + i + '" data-lock="' + lockText + '">' +
-        (lock ? '<div class="tech-icon empty">🔒</div><span>' + lockText + '</span>' : def ? techIcon(def) + '<span>' + def.name + '</span><em>神通' + (i + 1) + '</em>' : '<div class="tech-icon empty">+</div><span>神通' + (i + 1) + '</span>') + '</button>';
+        (lock ? '<div class="tech-icon empty">🔒</div><span>' + lockText + '</span>' : def ? techIcon(def) + '<span>' + def.name + '</span><em>' + P.stLv(id) + ' 级</em>' : '<div class="tech-icon empty">+</div><span>神通' + (i + 1) + '</span>') + '</button>';
     }
     U.$('#ch-st').innerHTML = html;
   };
@@ -210,10 +214,12 @@ XX.pages.character = (function () {
     var cur = cat === 'gongfa' ? st.skills.gongfa : st.skills.shentong[slot];
     var html = '<div class="tech-list">' + list.map(function (id) {
       var d = src[id], on = id === cur, used = cat === 'shentong' && !on && st.skills.shentong.indexOf(id) >= 0;
-      var info = cat === 'gongfa' ? Object.keys(d.effects).map(function (k) {
+      var eff = cat === 'gongfa' ? D.gongfaEffects(id) : null;
+      var info = cat === 'gongfa' ? Object.keys(eff).map(function (k) {
         var nm = { rate: '修炼速度', hpPct: '气血', atkPct: '攻击', defPct: '防御', mpPct: '灵力', sensePct: '神识', luck: '气运', comprehension: '悟性' }[k] || k;
-        return nm + '+' + (d.effects[k] < 1 ? U.pct(d.effects[k], 0) : d.effects[k]);
-      }).join(' ') : '灵力 ' + U.pct(d.cost, 0) + ' · 冷却 ' + d.cd + ' 回合';
+        nm = { crit: '暴击率', dodge: '闪避率' }[k] || nm;
+        return nm + '+' + (eff[k] < 1 ? U.pct(eff[k], 0) : eff[k]);
+      }).join(' ') : '<b class="ok">' + XX.sys.player.stLv(id) + ' 级</b> · ' + D.shentongBrief(id, XX.sys.player.stLv(id)) + ' · 灵力 ' + U.pct(d.cost, 0) + ' · 冷却 ' + d.cd;
       return '<button class="seed tech-opt' + (on ? ' on' : '') + '" data-id="' + id + '">' + techIcon(d) + '<div><b style="color:' + U.qColor(d.q) + '">' + d.name + '</b>' +
         (on ? ' <span class="ok small">运转中</span>' : used ? ' <span class="muted small">(已装配其他栏)</span>' : '') +
         '<div class="muted small">' + info + '</div><div class="small">' + d.desc + '</div></div></button>';

@@ -8,7 +8,7 @@ XX.pages.shop = (function () {
       '<div><b>仙玉商城</b><div class="muted small">仅收仙玉 · 每日 0:00 / 12:00 刷新</div></div>' +
       '<div class="shop-timer"><span class="muted small">刷新倒计时</span><b id="sh-timer"></b></div></div>' +
       '<div class="shop-grid" id="sh-grid"></div>' +
-      '<p class="muted small center">仙玉可通过大境界突破、秘境通关获得</p>';
+      '<p class="muted small center">价格随品阶(白→金)与品类递增 · 仙玉可通过秘境通关、大境界突破获得</p>';
     U.$('#sh-grid').onclick = function (e) {
       var info = e.target.closest('[data-info]');
       if (info) { XX.ui.modal({ title: '物品详情', html: XX.ui.itemInfo(info.dataset.info) }); return; }
@@ -29,9 +29,10 @@ XX.pages.shop = (function () {
       return '<div class="offer' + (out ? ' soldout' : '') + '" style="--qc:' + U.qColor(it.q) + '">' +
         '<div class="offer-icon" data-info="' + x.o.item + '">' + U.itemIcon(x.o.item) + (x.o.n > 1 ? '<span class="cnt">×' + x.o.n + '</span>' : '') + '</div>' +
         '<div class="offer-name">' + U.itemName(x.o.item) + '</div>' +
+        '<div class="offer-cat">' + D.shopCatName[D.shopCategory(x.o.item)] + ' · ' + XX.config.qualities[it.q || 0].short + '</div>' +
         '<div class="muted small">限购 ' + Math.max(0, x.left) + '/' + x.o.stock + '</div>' +
-        '<button class="btn small primary" data-buy="' + x.slot + '"' + (out || jade < x.o.price ? ' disabled' : '') + '>' +
-        (out ? '已售罄' : '<img class="ci" src="' + U.img('icon/xianyu') + '">' + x.o.price) + '</button></div>';
+        '<button class="btn small primary" data-buy="' + x.slot + '"' + (out || jade < x.price ? ' disabled' : '') + '>' +
+        (out ? '已售罄' : '<img class="ci" src="' + U.img('icon/xianyu') + '">' + x.price) + '</button></div>';
     }).join('');
   };
 
