@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>问道长生 · 修仙放置</title>
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/screens.css">
+<link rel="stylesheet" href="css/pages.css">
+</head>
+<body>
+<div id="stage-bg"></div>
+<div id="app">
+  <!-- 各屏幕由 js/screens/*.js 动态渲染 -->
+  <section id="screen-start" class="screen"></section>
+  <section id="screen-create" class="screen"></section>
+  <section id="screen-game" class="screen"></section>
+  <div id="modal-root"></div>
+  <div id="toast-root"></div>
+</div>
+
+<!-- ========== 数据层(新增/修改数值只需改这里) ========== -->
+<script src="js/data/config.js"></script>
+<script src="js/data/roots.js"></script>
+<script src="js/data/realms.js"></script>
+<script src="js/data/attributes.js"></script>
+<script src="js/data/characters.js"></script>
+<script src="js/data/names.js"></script>
+<script src="js/data/items.js"></script>
+<script src="js/data/recipes.js"></script>
+<script src="js/data/cave.js"></script>
+<script src="js/data/monsters.js"></script>
+<script src="js/data/adventure.js"></script>
+<script src="js/data/shop.js"></script>
+
+<!-- ========== 核心 ========== -->
+<script src="js/core/util.js"></script>
+<script src="js/core/store.js"></script>
+<script src="js/core/ui.js"></script>
+
+<!-- ========== 系统逻辑 ========== -->
+<script src="js/systems/player.js"></script>
+<script src="js/systems/inventory.js"></script>
+<script src="js/systems/cave.js"></script>
+<script src="js/systems/battle.js"></script>
+<script src="js/systems/shop.js"></script>
+
+<!-- ========== 界面 ========== -->
+<script src="js/screens/start.js"></script>
+<script src="js/screens/create.js"></script>
+<script src="js/pages/character.js"></script>
+<script src="js/pages/bag.js"></script>
+<script src="js/pages/cave.js"></script>
+<script src="js/pages/outing.js"></script>
+<script src="js/pages/shop.js"></script>
+<script src="js/screens/game.js"></script>
+
+<script src="js/main.js"></script>
+</body>
+</html>
