@@ -1,0 +1,44 @@
+# 还原图片素材:把 _b64/ 下的文字编码还原为 assets/ 下的原始图片(校验 SHA-256),然后删除 _b64/
+name: restore-assets
+on:
+  push:
+    branches: [main]
+    paths: ['_b64/**']
+permissions:
+  contents: write
+concurrency: restore-assets
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Decode and commit
+        run: |
+          if [ ! -f _b64/manifest.txt ]; then echo "清单尚未上传,跳过"; exit 0; fi
+          python3 - <<'PY'
+          import base64, hashlib, os, sys
+          ok = True
+          n = 0
+          for line in open('_b64/manifest.txt', encoding='utf-8'):
+              line = line.strip()
+              if not line:
+                  continue
+              path, sha = line.split('\t')
+              src = '_b64/' + path + '.b64'
+              if not os.path.exists(src):
+                  print('缺少', src); ok = False; continue
+              data = base64.b64decode(open(src).read())
+              if hashlib.sha256(data).hexdigest() != sha:
+                  print('校验失败', path); ok = False; continue
+              os.makedirs(os.path.dirname(path), exist_ok=True)
+              open(path, 'wb').write(data)
+              n += 1
+          print('还原', n, '个文件')
+          sys.exit(0 if ok else 1)
+          PY
+          git rm -rq _b64
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add -A assets
+          git commit -m "v0.1.6 补充图片素材 assets(由自动任务还原)"
+          git push
