@@ -24,9 +24,6 @@ XX.screens.create = (function () {
       '  <div class="aura"></div><div class="aura ring"></div>' +
       '  <img class="preview-img" id="cr-img" alt="">' +
       '  <div class="preview-name" id="cr-pname"></div>' +
-      '  <div class="view-tabs" id="cr-views">' +
-      '    <button data-v="stand" class="on">看板</button><button data-v="med">打坐</button><button data-v="atk">战斗</button>' +
-      '  </div>' +
       '</div>' +
       '<div class="create-panel">' +
       '  <div class="gender-tabs" id="cr-gender"><button data-g="male" class="on">男 修</button><button data-g="female">女 修</button></div>' +
@@ -49,12 +46,6 @@ XX.screens.create = (function () {
       U.$$('#cr-gender button').forEach(function (x) { x.classList.toggle('on', x === b); });
       U.$('#cr-name').value = C.randomName(sel.gender);
       renderAvatars(); renderPreview();
-    };
-    U.$('#cr-views').onclick = function (e) {
-      var b = e.target.closest('button'); if (!b) return;
-      sel.view = b.dataset.v;
-      U.$$('#cr-views button').forEach(function (x) { x.classList.toggle('on', x === b); });
-      renderPreview();
     };
     U.$('#cr-root').onclick = function () {
       XX.ui.modal({

@@ -20,11 +20,10 @@ XX.screens.game = (function () {
       '    <div class="cur jade" title="仙玉"><img src="' + U.img('icon/xianyu') + '" alt=""><span id="tb-jade"></span></div></div>' +
       '  <button class="icon-btn gear" id="tb-gear" title="设置">⚙</button>' +
       '</header>' +
-      '<div class="expline" id="tb-exp"></div>' +
+      '<main class="page" id="page"></main>' +
       '<nav class="mainnav" id="mainnav">' + NAV.map(function (n) {
         return '<button data-p="' + n.id + '"><img src="' + U.img(n.icon) + '" alt=""><span>' + n.name + '</span></button>';
-      }).join('') + '</nav>' +
-      '<main class="page" id="page"></main>';
+      }).join('') + '</nav>';
 
     U.$('#mainnav').onclick = function (e) {
       var b = e.target.closest('button'); if (b) G.open(b.dataset.p);
@@ -44,7 +43,7 @@ XX.screens.game = (function () {
         title: '仙途伊始',
         html: '<p>道友<b>' + U.esc(st.name) + '</b>,欢迎踏入修仙界。</p>' +
           '<p class="muted">· 你身负<b style="color:#b8b2a6">五色灵根</b>,每 3 秒自动吸纳 10 点修为。<br>' +
-          '· 小境界修为圆满会自动突破,大境界需丹药与机缘。<br>· 前往【洞府】种植灵草、开炉炼丹;前往【外出】历练妖兽、探索秘境。<br>· 离线期间亦会持续修炼(最多 12 小时)。</p>',
+          '· 修为圆满后需手动突破,气运越高成功率越高;大境界还需丹药。<br>· 前往【洞府】种植灵草、开炉炼丹;前往【外出】历练妖兽、探索秘境。<br>· 离线期间亦会持续修炼(最多 12 小时)。</p>',
         buttons: [{ text: '开始修炼', cls: 'primary' }]
       });
     }
@@ -72,9 +71,8 @@ XX.screens.game = (function () {
     var st = XX.store.state, P = XX.sys.player;
     U.$('#tb-stone').textContent = U.num(st.stone);
     U.$('#tb-jade').textContent = U.num(st.jade);
-    U.$('#tb-realm').textContent = P.realm().name;
-    var need = P.expNeed();
-    U.$('#tb-exp').innerHTML = U.bar(st.exp / need, 'exp', '修为 ' + U.num(st.exp) + ' / ' + U.num(need) + '  ·  +' + P.rate() + '/3秒');
+    U.$('#tb-realm').textContent = P.realm().name + (P.isFull() ? ' · 可突破' : '');
+    U.$('#tb-realm').classList.toggle('full', P.isFull());
   };
 
   G.tick = function () {
@@ -96,25 +94,21 @@ XX.screens.game = (function () {
         '<div><span>灵矿待收</span><b>' + U.num(mine.stone) + ' 灵石</b></div></div>',
       buttons: [{ text: '好', cls: 'primary' }]
     });
-    if (st.realm !== r.before.realm) XX.store.addLog('闭关期间突破至「' + XX.sys.player.realm().name + '」。');
+    if (XX.sys.player.isFull()) XX.ui.toast('修为已圆满,请前往人物页手动突破');
   };
 
   G.settings = function () {
     var st = XX.store.state;
     XX.ui.modal({
       title: '设置',
-      html: '<label class="switch-row"><span>小境界自动突破</span><input type="checkbox" id="set-auto"' + (st.settings.autoBreak ? ' checked' : '') + '></label>' +
-        '<p class="muted small">存档自动保存在本浏览器中(每 5 秒)。</p>',
+      html: '<p class="muted small center">存档自动保存在本浏览器中(每 5 秒)。<br>版本 v' + XX.config.version + '</p>',
       buttons: [
         { text: '返回标题', onClick: function () { XX.store.save(); XX.go('start'); } },
         { text: '删除存档', cls: 'danger', onClick: function () {
           XX.ui.confirm('删除存档', '<p class="center danger">此操作不可恢复,确定删除全部进度?</p>', function () { G.hide(); XX.store.wipe(); XX.go('start'); }, '删除');
         } },
         { text: '保存', cls: 'primary', onClick: function () { XX.store.save(); XX.ui.toast('已保存'); } }
-      ],
-      onOpen: function (w) {
-        U.$('#set-auto', w).onchange = function (e) { st.settings.autoBreak = e.target.checked; XX.sys.player.autoBreak(); };
-      }
+      ]
     });
   };
 

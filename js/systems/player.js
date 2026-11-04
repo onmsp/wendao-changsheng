@@ -24,8 +24,7 @@ XX.sys.player = (function () {
   /* 装备属性汇总 */
   P.equipStats = function () {
     var sum = {};
-    Object.keys(st().equip).forEach(function (slot) {
-      var e = st().equip[slot];
+    st().equip.forEach(function (e) {
       if (!e) return;
       Object.keys(e.stats).forEach(function (k) { sum[k] = (sum[k] || 0) + e.stats[k]; });
     });
@@ -63,28 +62,13 @@ XX.sys.player = (function () {
 
   P.expNeed = function () { return P.realm().expNeed; };
 
-  /* 增加修为;到达瓶颈后停留 */
+  /* 增加修为;修为圆满后停留在上限,需手动突破。返回实际增加量 */
   P.addExp = function (v) {
-    var s = st();
-    s.exp += v;
-    P.autoBreak();
-    var need = P.expNeed();
-    if (!P.nextRealm()) s.exp = Math.min(s.exp, need);
-    else if (s.exp > need && P.nextRealm().isMajorGate) s.exp = need;
+    var s = st(), need = P.expNeed(), before = s.exp;
+    s.exp = Math.min(need, s.exp + v);
+    return s.exp - before;
   };
-
-  /* 小境界自动突破 */
-  P.autoBreak = function () {
-    var s = st(), changed = false;
-    while (s.settings.autoBreak && P.nextRealm() && !P.nextRealm().isMajorGate && s.exp >= P.expNeed()) {
-      s.exp -= P.expNeed();
-      s.realm++;
-      changed = true;
-      XX.store.addLog('修为精进,突破至「' + P.realm().name + '」。');
-    }
-    if (changed) XX.bus.emit('realm');
-    return changed;
-  };
+  P.isFull = function () { return st().exp >= P.expNeed(); };
 
   /* 定时修炼结算:每 3 秒一次 */
   P.tick = function (now) {
@@ -92,9 +76,7 @@ XX.sys.player = (function () {
     var n = Math.floor((now - s.lastTick) / ms);
     if (n <= 0) return 0;
     s.lastTick += n * ms;
-    var gain = n * P.rate();
-    P.addExp(gain);
-    return gain;
+    return P.addExp(n * P.rate());
   };
 
   /* 离线收益(返回秒数与修为) */
@@ -112,11 +94,15 @@ XX.sys.player = (function () {
     var s = st(), next = P.nextRealm();
     if (!next) return { max: true };
     var info = { next: next, ready: s.exp >= P.expNeed(), major: next.isMajorGate };
+    var luck = P.stats().luck;
+    info.luckBonus = luck * 0.01;
     if (info.major) {
       info.pill = next.pill;
       info.havePill = XX.sys.inv.count(next.pill) > 0;
-      info.chance = U.clamp(next.baseChance + P.stats().comprehension * 0.01 + (s.buffs.breakBonus || 0), 0.05, 0.95);
-    } else info.chance = 1;
+      info.talisman = s.buffs.breakBonus || 0;
+      info.chance = U.clamp(next.baseChance + info.luckBonus + info.talisman, 0.05, 0.95);
+    } else info.chance = U.clamp(next.baseChance + info.luckBonus, 0.05, 0.99);
+    info.base = next.baseChance;
     return info;
   };
 
@@ -126,10 +112,15 @@ XX.sys.player = (function () {
     if (info.max) return { ok: false, msg: '已至巅峰,前路唯有飞升。' };
     if (!info.ready) return { ok: false, msg: '修为不足,尚需继续积累。' };
     if (!info.major) {
-      s.exp -= P.expNeed(); s.realm++;
-      XX.store.addLog('突破至「' + P.realm().name + '」。');
-      XX.bus.emit('realm');
-      return { ok: true, msg: '突破成功!晋升 ' + P.realm().name };
+      if (Math.random() < info.chance) {
+        s.exp = 0; s.realm++;
+        XX.store.addLog('冲关成功,突破至「' + P.realm().name + '」。');
+        XX.bus.emit('realm');
+        return { ok: true, msg: '突破成功!晋升 ' + P.realm().name };
+      }
+      s.exp = Math.floor(s.exp * 0.9);
+      XX.store.addLog('冲击「' + info.next.name + '」失败,灵气逸散,修为损失一成。');
+      return { ok: false, fail: true, msg: '突破失败……修为损失一成,稳固后再试。' };
     }
     if (!info.havePill) return { ok: false, msg: '缺少【' + D.items[info.pill].name + '】,无法冲击' + info.next.majorName + '。' };
     XX.sys.inv.remove(info.pill, 1);

@@ -113,12 +113,11 @@ XX.sys.inv = (function () {
     var msg = '';
     switch (u.kind) {
       case 'exp':
-        var bi = P.breakInfo();
-        if (bi.max || (bi.ready && bi.major)) return '修为已至瓶颈,服用无益,请先突破大境界。';
+        if (P.isFull()) return '修为已满,服用无益,请先突破。';
         var total = 0;
         for (var i = 0; i < times; i++) {
-          var g = Math.max(u.min || 0, Math.round(P.expNeed() * u.pct));
-          P.addExp(g); total += g;
+          if (P.isFull()) { times = i; break; }
+          total += P.addExp(Math.max(u.min || 0, Math.round(P.expNeed() * u.pct)));
         }
         msg = '服下' + it.name + (times > 1 ? ' ×' + times : '') + ',修为 +' + U.num(total);
         break;
@@ -175,10 +174,14 @@ XX.sys.inv = (function () {
     return price;
   };
 
-  I.equip = function (idx) {
+  /* 佩戴法宝:slot 为 0~3;不传则放入第一个空位,返回 -1 表示已满需选择替换 */
+  I.firstFreeTreasure = function () { return XX.store.state.equip.indexOf(null); };
+  I.equip = function (idx, slot) {
     var s = XX.store.state, sl = s.bag.slots[idx];
     if (!sl || D.items[sl.id].type !== 'equip') return false;
-    var slot = D.items[sl.id].slot, old = s.equip[slot];
+    if (slot == null) slot = I.firstFreeTreasure();
+    if (slot < 0) return false;
+    var old = s.equip[slot];
     s.equip[slot] = sl;
     if (old) s.bag.slots[idx] = old; else s.bag.slots.splice(idx, 1);
     XX.bus.emit('bag'); XX.bus.emit('stats');

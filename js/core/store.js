@@ -31,10 +31,9 @@ XX.store = (function () {
       stone: C.start.stone,
       jade: C.start.jade,
       bag: { cap: C.bagCapacity, slots: [] },
-      equip: { weapon: null, armor: null, accessory: null },
+      equip: [null, null, null, null],
       perm: { hpPct: 0, comprehension: 0, rateBonus: 0 },
       buffs: { breakBonus: 0 },
-      settings: { autoBreak: true },
       cave: {
         arrays: {},
         alchemy: null,
@@ -71,7 +70,12 @@ XX.store = (function () {
   S.migrate = function (st) {
     st.perm = st.perm || { hpPct: 0, comprehension: 0, rateBonus: 0 };
     st.buffs = st.buffs || { breakBonus: 0 };
-    st.settings = st.settings || { autoBreak: true };
+    if (!Array.isArray(st.equip)) {   // 0.1.0 存档:武器/法衣/饰品 → 4 件法宝
+      var old = st.equip || {};
+      st.equip = [old.weapon || null, old.armor || null, old.accessory || null, null];
+    }
+    while (st.equip.length < XX.config.treasureSlots) st.equip.push(null);
+    st.v = XX.config.version;
     st.secret = st.secret || { day: XX.util.today(), used: 0, clears: {} };
     st.shop = st.shop || { period: -1, bought: {} };
     st.log = st.log || [];

@@ -9,11 +9,11 @@ XX.pages.bag = (function () {
       '<div class="bag-head card"><div><b>储物袋</b> <span id="bag-cap" class="muted"></span></div>' +
       '<button class="btn small" id="bag-sort">整理</button></div>' +
       '<div class="subtabs" id="bag-filter">' +
-      [['all', '全部'], ['pill', '丹药'], ['material', '材料'], ['equip', '装备'], ['special', '特殊']].map(function (f) {
+      [['all', '全部'], ['pill', '丹药'], ['material', '材料'], ['equip', '法宝'], ['special', '特殊']].map(function (f) {
         return '<button data-f="' + f[0] + '"' + (f[0] === filter ? ' class="on"' : '') + '>' + f[1] + '</button>';
       }).join('') + '</div>' +
       '<div class="bag-grid" id="bag-grid"></div>' +
-      '<p class="muted small center">普通物品每格可叠放 99 个,装备与特殊物品每件独占一格</p>';
+      '<p class="muted small center">普通物品每格可叠放 99 个,法宝与特殊物品每件独占一格</p>';
     U.$('#bag-sort').onclick = function () { XX.sys.inv.sort(); PG.draw(); XX.ui.toast('整理完毕'); };
     U.$('#bag-filter').onclick = function (e) {
       var b = e.target.closest('button'); if (!b) return;
@@ -45,7 +45,7 @@ XX.pages.bag = (function () {
   PG.equipDetail = function (e) {
     var it = D.items[e.id];
     return '<div class="item-detail">' + U.itemIcon(e.id, 'lg', e.q) + '<div><div class="item-detail-name" style="color:' + U.qColor(e.q) + '">' + it.name + '</div>' +
-      '<div class="muted">' + D.equipSlots[it.slot] + ' · ' + XX.config.qualities[e.q].name + '</div></div></div>' +
+      '<div class="muted">法宝 · ' + XX.config.qualities[e.q].name + '</div></div></div>' +
       '<p class="item-desc">' + it.desc + '</p><div class="stat-list">' +
       Object.keys(e.stats).map(function (k) {
         var v = e.stats[k];
@@ -60,9 +60,12 @@ XX.pages.bag = (function () {
     var html;
     if (it.type === 'equip') {
       html = PG.equipDetail(sl);
-      var cur = st.equip[it.slot];
-      if (cur) html += '<div class="muted small" style="margin-top:8px">当前已装备:<span style="color:' + U.qColor(cur.q) + '">' + D.items[cur.id].name + '</span></div>';
-      btns.push({ text: '装备', cls: 'primary', onClick: function () { inv.equip(i); XX.ui.toast('已装备 ' + it.name, 'ok'); PG.draw(); } });
+      var worn = st.equip.filter(function (x) { return x; }).length;
+      html += '<div class="muted small" style="margin-top:8px">已佩戴法宝 ' + worn + ' / ' + st.equip.length + '</div>';
+      btns.push({ text: '佩戴', cls: 'primary', onClick: function () {
+        if (inv.firstFreeTreasure() >= 0) { inv.equip(i); XX.ui.toast('已佩戴 ' + it.name, 'ok'); PG.draw(); }
+        else PG.chooseReplace(i);
+      } });
     } else {
       html = XX.ui.itemInfo(sl.id, sl.n ? '<div class="muted small">持有:' + inv.count(sl.id) + '</div>' : '');
       if (it.use && it.use.kind !== 'break') {
@@ -78,6 +81,24 @@ XX.pages.bag = (function () {
       var got = inv.sell(i, sl.n); XX.ui.toast('出售获得灵石 ×' + got); PG.draw();
     } });
     XX.ui.modal({ title: '物品详情', html: html, buttons: btns, cls: 'item-modal' });
+  };
+
+  /* 4 件法宝已满:选择替换哪一件 */
+  PG.chooseReplace = function (i) {
+    var st = XX.store.state;
+    var html = '<p class="muted small center">法宝位已满,选择要替换的法宝</p><div class="replace-list">' + st.equip.map(function (e, k) {
+      return '<button class="seed" data-k="' + k + '">' + U.itemIcon(e.id, '', e.q) + '<div><b style="color:' + U.qColor(e.q) + '">' + D.items[e.id].name + '</b><div class="muted small">' +
+        Object.keys(e.stats).map(function (s) { var v = e.stats[s]; return STAT_NAMES[s] + '+' + (v < 1 ? U.pct(v) : v); }).join(' ') + '</div></div></button>';
+    }).join('') + '</div>';
+    XX.ui.modal({
+      title: '替换法宝', html: html, buttons: [{ text: '取消' }],
+      onOpen: function (w, close) {
+        U.$('.replace-list', w).onclick = function (e) {
+          var b = e.target.closest('[data-k]'); if (!b) return;
+          XX.sys.inv.equip(i, +b.dataset.k); XX.ui.toast('法宝已替换', 'ok'); PG.draw(); close();
+        };
+      }
+    });
   };
 
   PG.useMsg = function (msg) {

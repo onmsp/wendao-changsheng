@@ -82,7 +82,7 @@ XX.sys.battle = (function () {
       var stone = U.randInt(area.stone[0], area.stone[1]);
       var exp = U.randInt(area.exp[0], area.exp[1]);
       st().stone += stone;
-      XX.sys.player.addExp(exp);
+      exp = XX.sys.player.addExp(exp);
       r.reward = { stone: stone, exp: exp, items: XX.sys.inv.grant(B.rollDrops(area.drops, luck)) };
       st().outing.wins++;
     } else st().outing.losses++;

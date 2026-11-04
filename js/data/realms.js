@@ -34,7 +34,7 @@ XX.data.realmCurve = {
         majorName: m.name,
         isMajorGate: si === 0 && mi > 0,      // 突破进入此境界需要大境界突破
         pill: si === 0 ? m.pill : null,
-        baseChance: si === 0 && mi > 0 ? m.baseChance : 1,
+        baseChance: si === 0 && mi > 0 ? m.baseChance : Math.max(0.6, 0.92 - mi * 0.04), // 小境界基础成功率随大境界递减
         expNeed: Math.round(c.expBase * Math.pow(c.expGrow, idx)),
         lifespan: m.lifespan,
         stats: {

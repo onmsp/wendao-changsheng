@@ -1,19 +1,18 @@
-/* 外出页面:历练 / 秘境,含动态战斗演出 */
+/* 外出页面:历练 / 秘境(战斗演出见 battle-view.js) */
 XX.pages.outing = (function () {
   var U = XX.util, D = XX.data, PG = {}, tab = 'trial', root = null;
-  var timers = [], auto = false, busy = false, curArea = null;
+  var auto = false, busy = false, curArea = null, BV = null, waitT = null;
   function st() { return XX.store.state; }
-  function later(fn, ms) { var t = setTimeout(fn, ms); timers.push(t); return t; }
-  function clearTimers() { timers.forEach(clearTimeout); timers = []; }
 
   PG.render = function (el) {
-    root = el; busy = false; auto = false;
+    root = el; busy = false; auto = false; BV = XX.battleView;
     el.innerHTML = '<div class="icon-tabs two" id="out-tabs">' +
       '<button data-t="trial"' + (tab === 'trial' ? ' class="on"' : '') + '><img src="' + U.img('icon/trial') + '" alt=""><span>历练</span></button>' +
       '<button data-t="secret"' + (tab === 'secret' ? ' class="on"' : '') + '><img src="' + U.img('icon/secret') + '" alt=""><span>秘境</span></button>' +
       '</div><div id="out-body"></div>';
     U.$('#out-tabs').onclick = function (e) {
-      var b = e.target.closest('button'); if (!b || busy) { if (busy) XX.ui.toast('战斗中,无法切换'); return; }
+      var b = e.target.closest('button'); if (!b) return;
+      if (busy) { XX.ui.toast('战斗中,无法切换'); return; }
       tab = b.dataset.t; auto = false;
       U.$$('#out-tabs button').forEach(function (x) { x.classList.toggle('on', x === b); });
       PG.list();
@@ -23,7 +22,8 @@ XX.pages.outing = (function () {
 
   /* ---------- 地图列表 ---------- */
   PG.list = function () {
-    clearTimers(); curArea = null;
+    BV.clear(); clearTimeout(waitT); curArea = null; busy = false; auto = false;
+    U.$('#out-tabs').style.display = '';
     var body = U.$('#out-body'), realm = st().realm;
     if (tab === 'trial') {
       body.innerHTML = '<p class="section-tip">斩妖除魔,获取灵石、修为与天材地宝。已胜 ' + st().outing.wins + ' 场</p>' + D.areas.map(function (a) {
@@ -47,7 +47,7 @@ XX.pages.outing = (function () {
           '<div class="map-bg" style="background-image:url(' + U.img('bg/' + s.bg) + ')"></div>' +
           '<div class="map-mons">' + s.floors.slice(-2).map(function (m) { return '<img src="' + U.img('monster/' + D.monsters[m].img) + '" alt="">'; }).join('') + '</div>' +
           '<div class="map-info"><b>' + s.name + '</b><span class="muted small">' + s.desc + '</span>' +
-          '<span class="small">' + s.floors.length + ' 层 · 通关:<img class="ci" src="' + U.img('icon/xianyu') + '">' + s.reward.jade[0] + '~' + s.reward.jade[1] + ' · 已通关 ' + (st().secret.clears[s.id] || 0) + ' 次</span>' +
+          '<span class="small">' + s.floors.length + ' 层 · 通关 <img class="ci" src="' + U.img('icon/xianyu') + '">' + s.reward.jade[0] + '~' + s.reward.jade[1] + ' · 已通关 ' + (st().secret.clears[s.id] || 0) + ' 次</span>' +
           '<div class="map-drops">' + s.drops.map(function (d) { return U.itemIcon(d[0], 'xs'); }).join('') + '</div></div>' +
           '<div class="map-act">' + (lock ? '<span class="danger small">需 ' + D.realms[s.reqRealm].name + '</span>' : '<button class="btn small primary"' + (left > 0 ? '' : ' disabled') + '>探索</button>') + '</div></div>';
       }).join('');
@@ -60,25 +60,10 @@ XX.pages.outing = (function () {
     }
   };
 
-  /* ---------- 战斗舞台 ---------- */
-  function stageHtml(bg, title) {
-    var P = XX.sys.player;
-    return '<div class="battle-top"><button class="icon-btn" id="bt-back">‹</button><b>' + title + '</b><span id="bt-floor"></span></div>' +
-      '<div class="battle-stage" style="background-image:url(' + U.img('bg/' + bg) + ')">' +
-      '  <div class="fighter me"><div class="hpbox"><div class="fname">' + U.esc(st().name) + '</div><div id="bt-php"></div><div id="bt-pmp"></div></div>' +
-      '    <img id="bt-pimg" src="' + P.img('stand') + '" alt=""></div>' +
-      '  <div class="vs">VS</div>' +
-      '  <div class="fighter foe"><div class="hpbox"><div class="fname" id="bt-mname"></div><div id="bt-mhp"></div></div>' +
-      '    <img id="bt-mimg" alt=""></div>' +
-      '  <div class="skill-flash" id="bt-skill"></div>' +
-      '</div>' +
-      '<div class="battle-ctrl" id="bt-ctrl"></div>' +
-      '<ul class="battle-log" id="bt-log"></ul>';
-  }
-
   function setBars(pHp, pMax, pMp, pMaxMp, mHp, mMax) {
+    if (!U.$('#bt-php')) return;
     U.$('#bt-php').innerHTML = U.bar(pHp / pMax, 'hp', U.num(pHp) + '/' + U.num(pMax));
-    if (pMaxMp != null) U.$('#bt-pmp').innerHTML = U.bar(pMp / pMaxMp, 'mp');
+    U.$('#bt-pmp').innerHTML = U.bar(pMp / pMaxMp, 'mp');
     U.$('#bt-mhp').innerHTML = U.bar(mHp / mMax, 'hp foe', U.num(mHp) + '/' + U.num(mMax));
   }
 
@@ -89,67 +74,46 @@ XX.pages.outing = (function () {
     while (ul.children.length > 40) ul.removeChild(ul.lastChild);
   }
 
-  /* 播放一场战斗:fight = {monster, pStart, pMax, pMp, pMaxMp, events} */
+  /* 播放一场:fight = {monster, pStart, pMax, pMp, pMaxMp, events} */
   function play(fight, done) {
-    var P = XX.sys.player, t = P.tpl();
-    var pImg = U.$('#bt-pimg'), mImg = U.$('#bt-mimg');
-    mImg.src = U.img('monster/' + fight.monster.img);
-    mImg.className = 'enter';
-    U.$('#bt-mname').textContent = fight.monster.name;
+    var t = XX.sys.player.tpl();
     setBars(fight.pStart, fight.pMax, fight.pMp, fight.pMaxMp, fight.monster.maxHp, fight.monster.maxHp);
-    var i = 0;
-    function step() {
-      if (!root || !U.$('#bt-pimg')) return;
-      if (i >= fight.events.length) { later(done, 500); return; }
-      var ev = fight.events[i++];
-      var isP = ev.actor === 'p', atkEl = isP ? pImg : mImg, defEl = isP ? mImg : pImg;
-      if (isP) { pImg.src = P.img('atk'); }
-      atkEl.classList.remove('lunge'); void atkEl.offsetWidth; atkEl.classList.add('lunge');
-      if (ev.skill) {
-        var sk = U.$('#bt-skill');
-        sk.textContent = isP ? t.skill : '妖力爆发';
-        sk.className = 'skill-flash show ' + (isP ? 'me' : 'foe');
-        later(function () { sk.className = 'skill-flash'; }, 700);
-      }
-      later(function () {
-        if (!U.$('#bt-pimg')) return;
-        if (ev.type === 'dodge') {
-          XX.ui.floatText(defEl, '闪避', 'dodge');
-          logLine((isP ? '妖兽' : '你') + '身形一闪,躲开了攻击', 'muted');
-        } else {
-          defEl.classList.remove('hit'); void defEl.offsetWidth; defEl.classList.add('hit');
-          XX.ui.floatText(defEl, (ev.type === 'crit' ? '暴击 ' : '') + '-' + U.num(ev.dmg), ev.type === 'crit' ? 'crit' : (isP ? 'dmg' : 'hurt'));
-          logLine(isP ? '你' + (ev.skill ? '施展【' + t.skill + '】' : '出手') + ',造成 <b class="' + (ev.type === 'crit' ? 'crit' : '') + '">' + U.num(ev.dmg) + '</b> 伤害' + (ev.type === 'crit' ? '(暴击)' : '')
-            : fight.monster.name + (ev.skill ? '狂暴扑击' : '攻击') + ',你受到 <b class="hurt">' + U.num(ev.dmg) + '</b> 伤害');
-        }
+    BV.playFight(fight, {
+      onImpact: function (ev) {
         setBars(ev.pHp, fight.pMax, ev.pMp, fight.pMaxMp, ev.mHp, fight.monster.maxHp);
-      }, 220);
-      later(function () { if (isP && U.$('#bt-pimg')) pImg.src = P.img('stand'); }, 520);
-      later(step, 640);
-    }
-    later(step, 450);
+        var isP = ev.actor === 'p';
+        if (ev.type === 'dodge') logLine((isP ? fight.monster.name : '你') + '身形一闪,躲开了攻击', 'muted');
+        else logLine(isP ? '你' + (ev.skill ? '掐诀施展【' + t.skill + '】' : '挥招出击') + ',造成 <b class="' + (ev.type === 'crit' ? 'crit' : '') + '">' + U.num(ev.dmg) + '</b> 伤害' + (ev.type === 'crit' ? '(暴击)' : '')
+          : fight.monster.name + (ev.skill ? '妖力爆发,狂暴扑击' : '扑击') + ',你受到 <b class="hurt">' + U.num(ev.dmg) + '</b> 伤害');
+      },
+      done: done
+    });
   }
 
   /* ---------- 历练 ---------- */
   PG.enterArea = function (id) {
     var area = D.areas.filter(function (a) { return a.id === id; })[0];
     curArea = area;
-    U.$('#out-body').innerHTML = stageHtml(area.bg, area.name);
-    U.$('#bt-back').onclick = function () { if (busy) { auto = false; XX.ui.toast('本场结束后撤退'); PG._exit = true; return; } PG.list(); };
-    U.$('#bt-ctrl').innerHTML = '<button class="btn primary" id="bt-go">挑战</button><label class="auto-tog"><input type="checkbox" id="bt-auto"> 自动历练</label>';
+    U.$('#out-tabs').style.display = 'none';
+    BV.mount(U.$('#out-body'), { bg: area.bg, title: area.name });
+    U.$('#out-body').onclick = null;
+    U.$('#bt-back').onclick = function () {
+      if (busy) { auto = false; PG._exit = true; XX.ui.toast('本场结束后撤退'); return; }
+      PG.list();
+    };
+    U.$('#bt-ctrl').innerHTML = '<button class="btn primary" id="bt-go">挑 战</button><label class="auto-tog"><input type="checkbox" id="bt-auto"> 自动历练</label>';
     U.$('#bt-go').onclick = PG.fight;
     U.$('#bt-auto').onchange = function (e) { auto = e.target.checked; if (auto && !busy) PG.fight(); };
     PG._exit = false;
     var p = XX.sys.battle.playerFighter();
     U.$('#bt-mname').textContent = '???';
     setBars(p.maxHp, p.maxHp, p.mp, p.maxMp, 1, 1);
-    U.$('#bt-mimg').src = U.img('monster/' + D.monsters[area.monsters[0]].img);
-    U.$('#bt-mimg').className = 'idle-foe';
+    BV.idleFoe(D.monsters[area.monsters[0]].img);
     logLine('你来到了<b>' + area.name + '</b>,四周妖气隐现……', 'muted');
   };
 
   PG.fight = function () {
-    if (busy || !curArea) return;
+    if (busy || !curArea || !U.$('#bt-go')) return;
     busy = true; U.$('#bt-go').disabled = true;
     var r = XX.sys.battle.fightArea(curArea.id);
     logLine('—— 遭遇 <b>' + r.monster.name + '</b> ——', 'sep');
@@ -160,13 +124,13 @@ XX.pages.outing = (function () {
       if (r.win) {
         var items = r.reward.items.map(function (g) { return U.itemName(g[0]) + '×' + g[1]; }).join(' ');
         logLine('<span class="ok">胜利!</span> 灵石 +' + r.reward.stone + ' 修为 +' + r.reward.exp + (items ? ' ' + items : ''), 'win');
-        U.$('#bt-mimg').classList.add('dead');
+        BV.foeDie();
       } else {
         logLine('<span class="danger">落败……</span> 你重伤遁走,需提升实力再来。', 'lose');
         auto = false; if (U.$('#bt-auto')) U.$('#bt-auto').checked = false;
       }
       if (PG._exit) { PG._exit = false; PG.list(); return; }
-      if (auto) later(PG.fight, 1100);
+      if (auto) waitT = setTimeout(PG.fight, 1200);
     });
   };
 
@@ -178,12 +142,15 @@ XX.pages.outing = (function () {
     var res = XX.sys.battle.runSecret(id);
     XX.store.save();
     busy = true;
-    U.$('#out-body').innerHTML = stageHtml(s.bg, s.name);
-    U.$('#bt-back').onclick = function () { XX.ui.toast('秘境之中无法退出,请等待探索结束'); };
+    U.$('#out-tabs').style.display = 'none';
+    BV.mount(U.$('#out-body'), { bg: s.bg, title: s.name });
+    U.$('#out-body').onclick = null;
+    U.$('#bt-back').onclick = function () { XX.ui.toast('秘境之中无法退出,可点击"跳过演出"'); };
     U.$('#bt-ctrl').innerHTML = '<span class="muted small">探索进行中……</span><button class="btn small" id="bt-skip">跳过演出</button>';
-    var k = 0;
+    var k = 0, finished = false;
     function finish() {
-      clearTimers(); busy = false;
+      if (finished) return; finished = true;
+      BV.clear(); busy = false;
       if (U.$('#bt-back')) U.$('#bt-back').onclick = PG.list;
       if (U.$('#bt-ctrl')) U.$('#bt-ctrl').innerHTML = '<button class="btn primary" id="bt-ret">返回秘境列表</button>';
       if (U.$('#bt-ret')) U.$('#bt-ret').onclick = PG.list;
@@ -197,20 +164,21 @@ XX.pages.outing = (function () {
     }
     U.$('#bt-skip').onclick = finish;
     function next() {
+      if (finished || !U.$('#bt-floor')) return;
       if (k >= res.fights.length) { finish(); return; }
       var f = res.fights[k++];
-      U.$('#bt-floor').textContent = '第 ' + f.floor + ' / ' + res.total + ' 层' + (f.boss ? ' · 首领' : '');
+      U.$('#bt-floor').textContent = '第 ' + f.floor + '/' + res.total + ' 层' + (f.boss ? '·首领' : '');
       logLine('—— 第 ' + f.floor + ' 层:' + f.monster.name + ' ——', 'sep');
       play({ monster: f.monster, pStart: f.pStart, pMax: f.pMax, pMp: f.pMp, pMaxMp: f.pMaxMp, events: f.events }, function () {
-        if (f.win) { logLine('<span class="ok">击败 ' + f.monster.name + '</span>,调息片刻恢复三成气血', 'win'); U.$('#bt-mimg') && U.$('#bt-mimg').classList.add('dead'); }
+        if (f.win) { logLine('<span class="ok">击败 ' + f.monster.name + '</span>,调息片刻恢复三成气血', 'win'); BV.foeDie(); }
         else logLine('<span class="danger">不敌 ' + f.monster.name + '</span>', 'lose');
-        later(next, 700);
+        waitT = setTimeout(next, 900);
       });
     }
     next();
   };
 
   PG.update = function () { };
-  PG.destroy = function () { clearTimers(); auto = false; busy = false; root = null; };
+  PG.destroy = function () { if (BV) BV.clear(); clearTimeout(waitT); auto = false; busy = false; root = null; };
   return PG;
 })();
