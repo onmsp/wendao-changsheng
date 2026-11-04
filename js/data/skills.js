@@ -20,8 +20,10 @@ XX.data.gongfa = {
   jingang: { name: '金刚不坏体', q: 2, reqRealm: 9, icon: 'skill/golden', effects: { defPct: 0.15 }, desc: '佛门炼体秘法,修至大成刀枪不入。' },
   zixia: { name: '紫霞神功', q: 3, reqRealm: 13, icon: 'skill/book', hue: 270, effects: { mpPct: 0.2, atkPct: 0.12 }, desc: '紫气东来三万里,灵力生生不绝。' },
   jiuzhuan: { name: '九转玄功', q: 3, reqRealm: 15, icon: 'skill/golden', hue: 320, effects: { hpPct: 0.2, defPct: 0.12 }, desc: '九转功成,法体双修。' },
+  xuanming: { name: '玄冥真经', q: 3, reqRealm: 21, icon: 'skill/book', hue: 220, effects: { hpPct: 0.2, defPct: 0.15 }, desc: '玄冥之气护体,万法难侵。' },
   taishang: { name: '太上忘情录', q: 4, reqRealm: 17, icon: 'skill/book', hue: 180, effects: { sensePct: 0.3, comprehension: 5, luck: 3 }, desc: '太上忘情,以无情证有情。' },
   dayan: { name: '大衍天书', q: 4, reqRealm: 25, icon: 'skill/book', hue: 30, effects: { hpPct: 0.2, atkPct: 0.2, defPct: 0.2 }, desc: '大衍之数五十,其用四十有九。' },
+  hunyuangong: { name: '混元一气功', q: 4, reqRealm: 29, icon: 'skill/sun', hue: 100, effects: { atkPct: 0.25, hpPct: 0.2, crit: 0.04 }, desc: '混元一气,万法归宗。' },
   taichu: { name: '太初真解', q: 4, reqRealm: 33, icon: 'skill/sun', effects: { atkPct: 0.3, luck: 5, crit: 0.05 }, desc: '直指太初本源,渡劫者的不传之秘。' }
 };
 XX.data.gongfaAttrName = { rate: '修炼速度', hpPct: '气血', atkPct: '攻击', defPct: '防御', mpPct: '灵力', sensePct: '神识', luck: '气运', comprehension: '悟性', crit: '暴击率', dodge: '闪避率' };
@@ -71,7 +73,10 @@ XX.data.shentong = {
   jiutian: { name: '九天玄雷', q: 3, reqRealm: 14, icon: 'skill/thunder', hue: 40, type: 'dmg', mult: 2.6, stun: 0.35, mp: 40, fx: 'thunder', desc: '引九天玄雷造成 260% 伤害,35% 概率眩晕。' },
   tianhuo: { name: '天火燎原', q: 3, reqRealm: 16, icon: 'skill/sun', type: 'dmg', mult: 2.2, burn: { pct: 0.4, turns: 3 }, mp: 42, fx: 'sun', desc: '召唤天火造成 220% 伤害,并灼烧 3 回合(每回合 40% 攻击)。' },
   xuanwu: { name: '玄武真罡', q: 3, reqRealm: 15, icon: 'skill/golden', hue: 120, type: 'shield', shield: 0.4, mp: 36, fx: 'shield', desc: '气血低于 70% 时可触发,获得 40% 最大气血的护盾。' },
+  xuehai: { name: '血海滔天', q: 3, reqRealm: 23, icon: 'skill/drain', hue: 340, type: 'drain', mult: 2.0, drain: 0.4, mp: 45, fx: 'drain', desc: '血海翻涌造成 200% 伤害,吸取其中 40% 为气血。' },
   /* —— 金 —— */
+  tianjie: { name: '天劫神雷', q: 4, reqRealm: 37, icon: 'skill/thunder', hue: 200, type: 'dmg', mult: 5.0, stun: 0.4, mp: 90, fx: 'thunder', desc: '引动天劫之雷造成 500% 伤害,40% 概率眩晕。' },
+  wanfa: { name: '万法归一', q: 4, reqRealm: 35, icon: 'skill/swords', hue: 50, type: 'multi', mult: 1.5, hits: 4, mp: 85, fx: 'swords', desc: '万法归一,攻击 4 次,每次 150% 伤害。' },
   zhanxian: { name: '斩仙一剑', q: 4, reqRealm: 21, icon: 'skill/sword', hue: 160, type: 'dmg', mult: 4.2, armor: { pct: 0.3, turns: 2 }, mp: 70, fx: 'sword', desc: '斩仙之剑造成 420% 伤害,并破敌防御 30%。' },
   daluo: { name: '大罗金身', q: 4, reqRealm: 25, icon: 'skill/golden', hue: 30, type: 'heal', heal: 0.5, shield: 0.3, mp: 60, fx: 'golden', desc: '气血低于 55% 时可触发,回复 50% 气血并获得 30% 护盾。' },
   hunyuan: { name: '混元一气', q: 4, reqRealm: 29, icon: 'skill/sun', hue: 180, type: 'multi', mult: 1.2, hits: 4, mp: 70, fx: 'sun', desc: '混元一气化四象,攻击 4 次,每次 120% 伤害。' },
@@ -114,15 +119,15 @@ XX.data.shentongBrief = function (id, lv) {
 /* 自动生成玉简物品 */
 (function () {
   var D = XX.data;
+  Object.keys(D.shentong).forEach(function (id) { if (D.shentong[id].reqRealm == null) D.shentong[id].reqRealm = D.shentong[id].innate ? 2 : 0; });
+  Object.keys(D.gongfa).forEach(function (id) { if (D.gongfa[id].reqRealm == null) D.gongfa[id].reqRealm = 0; });
   Object.keys(D.gongfa).forEach(function (id) {
     var g = D.gongfa[id];
-    if (g.innate) return;
     D.items['gf_' + id] = { name: '《' + g.name + '》', type: 'special', scroll: 'gongfa', ref: id, icon: 'item/manual', hue: g.hue, q: g.q, price: 150 * (g.q + 1) * (g.q + 1), badge: '功',
       desc: '功法玉简(需' + D.realms[g.reqRealm].name + ')。获得即自动习得;已掌握则转化为 5 个功法碎片。' + g.desc };
   });
   Object.keys(D.shentong).forEach(function (id) {
     var s = D.shentong[id];
-    if (s.innate) return;
     D.items['st_' + id] = { name: '技能·' + s.name, type: 'special', scroll: 'shentong', ref: id, icon: s.icon, hue: s.hue, q: s.q, price: 150 * (s.q + 1) * (s.q + 1), badge: '技',
       desc: '技能玉简(需' + D.realms[s.reqRealm].name + ')。获得即自动习得;已掌握则转化为 5 个技能碎片。' + s.desc };
   });

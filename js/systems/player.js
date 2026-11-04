@@ -9,11 +9,16 @@ XX.sys.player = (function () {
   P.nextRealm = function () { return D.realms[st().realm + 1] || null; };
   /* 阵法:等级 0 = 未布置 */
   P.arrayLv = function (id) { return (st().cave.arrays || {})[id] || 0; };
+  /* 生效中的阵法(最多 config.arrayActiveMax 个) */
+  P.activeArrays = function () {
+    var cv = st().cave; cv.activeArrays = cv.activeArrays || [];
+    return cv.activeArrays.filter(function (id) { return P.arrayLv(id) > 0; }).slice(0, C.arrayActiveMax);
+  };
   P.arrayEffects = function () {
-    var sum = {};
+    var sum = {}, act = P.activeArrays();
     D.arrays.forEach(function (a) {
       var lv = P.arrayLv(a.id);
-      if (!lv) return;
+      if (!lv || act.indexOf(a.id) < 0) return;
       var m = D.lvMul(lv) * XX.sys.inv.bpMul(a.id);
       Object.keys(a.effects).forEach(function (k) { sum[k] = (sum[k] || 0) + a.effects[k] * m; });
     });
@@ -44,7 +49,7 @@ XX.sys.player = (function () {
     add(P.tpl().bonus);
     if (P.gongfa()) add(D.gongfaEffects(st().skills.gongfa, P.gfLv(st().skills.gongfa)));
     var ae = P.arrayEffects();
-    ['rate', 'atkPct', 'defPct', 'hpPct', 'dodge', 'critDmg'].forEach(function (k) { if (ae[k]) { var o = {}; o[k] = ae[k]; add(o); } });
+    ['rate', 'atkPct', 'defPct', 'hpPct', 'mpPct', 'dodge', 'crit', 'critDmg'].forEach(function (k) { if (ae[k]) { var o = {}; o[k] = ae[k]; add(o); } });
     st().equip.forEach(function (e) {
       if (!e || !e.affixes) return;
       e.affixes.forEach(function (a) { if (D.affixes[a.id] && D.affixes[a.id].kind === 'stat') { var o = {}; o[a.id] = a.v; add(o); } });
@@ -87,9 +92,9 @@ XX.sys.player = (function () {
     var s = st(), r = P.realm(), b = P.bonus(), eq = P.equipStats();
     var g = function (o, k) { return o[k] || 0; };
     var hp = (r.stats.hp + g(eq, 'hp')) * (1 + g(b, 'hpPct') + (s.perm.hpPct || 0));
-    var mp = (r.stats.mp + g(eq, 'mp')) * (1 + g(b, 'mpPct'));
-    var atk = (r.stats.atk + g(eq, 'atk')) * (1 + g(b, 'atkPct') + P.timed('atk'));
-    var def = (r.stats.def + g(eq, 'def')) * (1 + g(b, 'defPct') + P.timed('def'));
+    var mp = (r.stats.mp + g(eq, 'mp')) * (1 + g(b, 'mpPct') + (s.perm.mpPct || 0));
+    var atk = (r.stats.atk + g(eq, 'atk')) * (1 + g(b, 'atkPct') + (s.perm.atkPct || 0) + P.timed('atk'));
+    var def = (r.stats.def + g(eq, 'def')) * (1 + g(b, 'defPct') + (s.perm.defPct || 0) + P.timed('def'));
     var spd = (r.stats.spd + g(eq, 'spd')) * (1 + g(b, 'spdPct'));
     var sense = (r.stats.sense + g(eq, 'sense')) * (1 + g(b, 'sensePct'));
     return {
@@ -155,32 +160,49 @@ XX.sys.player = (function () {
     return { sec: elapsed / 1000, gain: gain };
   };
 
-  P.breakInfo = function () {
-    var s = st(), next = P.nextRealm();
+  /* 气运对突破的加成:100 点气运在炼气期为 +10%(上限),之后每个大境界效果减半 */
+  P.luckBreakBonus = function (luck, major) {
+    if (luck == null) luck = P.stats().luck;
+    if (major == null) major = P.realm().major;
+    return C.luckBreakCap * Math.min(1, Math.max(0, luck) / C.luckFull) * Math.pow(0.5, major);
+  };
+  /* 当前大境界可用的突破丹(按品级从高到低) */
+  P.breakPills = function () {
+    var r = P.realm(), list = [];
+    st().bag.slots.forEach(function (sl) {
+      if (sl && sl.id === r.pill) list.push({ id: sl.id, g: sl.g || 1, n: sl.n || 1, q: D.qOf(sl.id, sl.g), bonus: C.breakPillBonus[D.qOf(sl.id, sl.g)] });
+    });
+    var m = {};
+    list.forEach(function (x) { if (m[x.g]) m[x.g].n += x.n; else m[x.g] = x; });
+    return Object.keys(m).map(function (k) { return m[k]; }).sort(function (a, b) { return b.g - a.g; });
+  };
+
+  /* pillG:选择服用的突破丹品级(0/undefined = 不服用;'best' = 最好的一颗) */
+  P.breakInfo = function (pillG) {
+    var s = st(), cur = P.realm(), next = P.nextRealm();
     if (!next) return { max: true };
-    var info = { next: next, ready: s.exp >= P.expNeed(), major: next.isMajorGate };
-    info.luckBonus = P.stats().luck * 0.01;
-    info.base = next.baseChance;
+    var info = { cur: cur, next: next, ready: s.exp >= P.expNeed(), major: next.isMajorGate };
+    info.base = cur.breakChance;
+    info.luck = P.stats().luck;
+    info.luckBonus = P.luckBreakBonus(info.luck, cur.major);
     info.rateGain = info.major ? C.breakRateBonus.major : C.breakRateBonus.minor;
-    if (info.major) {
-      info.pill = next.pill;
-      info.havePill = XX.sys.inv.count(next.pill) > 0;
-      info.talisman = s.buffs.breakBonus || 0;
-      info.chance = U.clamp(next.baseChance + info.luckBonus + info.talisman, 0.05, 0.95);
-    } else info.chance = U.clamp(next.baseChance + info.luckBonus, 0.05, 0.99);
+    info.pills = P.breakPills();
+    info.pillId = cur.pill;
+    if (pillG === 'best') pillG = info.pills.length ? info.pills[0].g : 0;
+    var pick = info.pills.filter(function (x) { return x.g === pillG; })[0] || null;
+    info.pillG = pick ? pick.g : 0;
+    info.pillBonus = pick ? pick.bonus : 0;
+    info.chance = U.clamp(info.base + info.pillBonus + info.luckBonus, C.breakMin, C.breakMax);
+    info.loss = U.trunc2(P.expNeed() * C.breakFailLoss);
     return info;
   };
 
-  /* 手动突破:消耗本境界所需修为,多余修为保留 */
-  P.breakthrough = function () {
-    var s = st(), info = P.breakInfo(), need = P.expNeed();
+  /* 手动突破:消耗本境界所需修为,多余修为保留;失败扣除所需修为的 20% */
+  P.breakthrough = function (pillG) {
+    var s = st(), info = P.breakInfo(pillG), need = P.expNeed();
     if (info.max) return { ok: false, msg: '已至巅峰,前路唯有飞升。' };
     if (!info.ready) return { ok: false, msg: '修为不足,尚需继续积累。' };
-    if (info.major) {
-      if (!info.havePill) return { ok: false, msg: '缺少【' + D.items[info.pill].name + '】,无法冲击' + info.next.majorName + '。' };
-      XX.sys.inv.remove(info.pill, 1);
-      s.buffs.breakBonus = 0;
-    }
+    if (info.pillG) XX.sys.inv.removeG(info.pillId, 1, info.pillG);
     if (Math.random() < info.chance) {
       var slotsBefore = P.slots().shentong;
       s.exp = U.trunc2(s.exp - need); s.realm++;
@@ -190,16 +212,20 @@ XX.sys.player = (function () {
         s.jade += jade;
         msg += ',获得仙玉 ×' + jade;
         if (P.slots().shentong > slotsBefore) msg += ',技能栏位增加至 ' + P.slots().shentong + ' 个!';
+        msg += '。属性丹服用上限提升至每种 ' + C.attrPillCap(P.realm().major) + ' 颗';
       }
       XX.store.addLog((info.major ? '天地异象!' : '') + '突破至「' + P.realm().name + '」,修炼速度 +' + U.pct(info.rateGain, 0) + '。');
       XX.bus.emit('realm');
       return { ok: true, big: info.major, msg: msg };
     }
-    var loss = U.trunc2(need * (info.major ? 0.3 : 0.1));
-    s.exp = Math.max(0, U.trunc2(s.exp - loss));
-    XX.store.addLog('冲击「' + info.next.name + '」失败,损失修为 ' + U.exp(loss) + '。');
-    return { ok: false, fail: true, msg: '突破失败……损失修为 ' + U.exp(loss) + (info.major ? ',丹药已耗' : '') };
+    s.exp = Math.max(0, U.trunc2(s.exp - info.loss));
+    XX.store.addLog('冲击「' + info.next.name + '」失败,损失修为 ' + U.exp(info.loss) + '。');
+    return { ok: false, fail: true, msg: '突破失败……损失修为 ' + U.exp(info.loss) + (info.pillG ? ',丹药已耗' : '') };
   };
+
+  /* 属性丹:每种在当前大境界的累计上限 */
+  P.attrCap = function () { return C.attrPillCap(P.realm().major); };
+  P.attrUsed = function (id) { return (st().attrUsed || {})[id] || 0; };
 
   return P;
 })();

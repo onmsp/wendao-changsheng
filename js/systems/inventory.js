@@ -123,16 +123,21 @@ XX.sys.inv = (function () {
     Object.keys(bs).forEach(function (k) { o[k] = bs[k] < 1 ? Math.round(bs[k] * m * 1000) / 1000 : Math.round(bs[k] * m); });
     return o;
   };
-  /* 强化消耗:沿用洞府升级规则(1~5 级灵石+玄铁,6~10 级灵石+玄铁精+仙玉),按品质放大 */
+  /* 特殊法宝 = 图纸炼制的法宝:不可强化,最多同时装备 2 件 */
+  I.isSpecial = function (e) { return !!(e && D.items[e.id] && D.items[e.id].forged); };
+  I.specialEquipped = function () { return st().equip.filter(function (e) { return I.isSpecial(e); }).length; };
+  /* 普通法宝强化:灵石 + 强化石(副本固定掉落) */
   I.enhanceCost = function (e) {
-    var q = e.q + 1;
-    return XX.sys.cave.costAt({ stoneBase: 120 * q, ironBase: q, jadeBase: 4 * q }, (e.lv || 1) + 1);
+    var q = (e.q || 0) + 1, lv = e.lv || 1;
+    return { stone: Math.round(100 * q * lv * (1 + (e.pw || 0) * 0.15)), qh: q * lv };
   };
   I.enhance = function (e) {
+    if (I.isSpecial(e)) return { ok: false, msg: '特殊法宝无法强化,只能以更高等级图纸重新炼制' };
     if ((e.lv || 1) >= C.maxLv) return { ok: false, msg: '已达满级(★)' };
-    var c = I.enhanceCost(e), K = XX.sys.cave;
-    if (!K.canPay(c)) return { ok: false, msg: K.lackText(c) };
-    K.pay(c);
+    var c = I.enhanceCost(e), s = st();
+    if (s.stone < c.stone) return { ok: false, msg: '灵石不足(需 ' + U.num(c.stone) + ')' };
+    if (I.count('stone_qh') < c.qh) return { ok: false, msg: '强化石不足(' + I.count('stone_qh') + '/' + c.qh + ',副本固定掉落)' };
+    s.stone -= c.stone; I.remove('stone_qh', c.qh);
     e.lv = (e.lv || 1) + 1;
     XX.bus.emit('stats');
     return { ok: true, msg: U.eqName(e) + ' 强化至 ' + U.lvText(e.lv) };
@@ -185,6 +190,20 @@ XX.sys.inv = (function () {
     XX.bus.emit('bag');
     return n - left;
   };
+  /* 按品级移除 */
+  I.removeG = function (id, n, g) {
+    var b = bag(), left = n;
+    for (var i = b.slots.length - 1; i >= 0 && left > 0; i--) {
+      var sl = b.slots[i];
+      if (sl.id !== id || gOf(sl) !== g) continue;
+      var take = Math.min(left, sl.n || 1);
+      sl.n = (sl.n || 1) - take; left -= take;
+      if (sl.n <= 0) b.slots.splice(i, 1);
+    }
+    XX.bus.emit('bag');
+    return n - left;
+  };
+  I.countG = function (id, g) { return bag().slots.reduce(function (s, sl) { return s + (sl.id === id && gOf(sl) === g ? (sl.n || 1) : 0); }, 0); };
   I.removeAt = function (idx, n) {
     var b = bag(), sl = b.slots[idx];
     if (!sl) return;
@@ -220,11 +239,15 @@ XX.sys.inv = (function () {
         var labels = { hpPct: '气血', comprehension: '悟性', rateBonus: '修炼速度', luck: '气运' };
         msg = it.name + '生效,' + labels[u.key] + ' 永久 +' + (u.add >= 1 ? s.perm[u.key] - cur : U.pct(s.perm[u.key] - cur));
         break;
-      case 'buff':
-        var b = s.buffs[u.key] || 0;
-        if (b >= u.cap - 1e-9) return '符力已满,无需再用。';
-        s.buffs[u.key] = Math.min(u.cap, b + u.add * gm); times = 1;
-        msg = it.name + '生效,下次大境界突破成功率 +' + U.pct(s.buffs[u.key], 0);
+      case 'attr':
+        s.attrUsed = s.attrUsed || {};
+        var acap = P.attrCap(), aused = s.attrUsed[sl.id] || 0;
+        if (aused >= acap) return it.name + '累计已服用 ' + aused + ' 颗,达到上限 ' + acap + '(突破大境界后提升)。';
+        times = Math.min(times, acap - aused);
+        var av = Math.round(u.v * gm * times * 10000) / 10000;
+        s.perm[u.key] = Math.round(((s.perm[u.key] || 0) + av) * 10000) / 10000;
+        s.attrUsed[sl.id] = aused + times;
+        msg = '服下' + it.name + (times > 1 ? ' ×' + times : '') + ',' + D.attrPills[sl.id].label + ' 永久 +' + U.pct(av, 1) + '(' + s.attrUsed[sl.id] + '/' + acap + ')';
         break;
       case 'bag':
         var bmax = P.bagMax();
@@ -265,7 +288,7 @@ XX.sys.inv = (function () {
         if (!msg) msg = '灵根转化度 +' + U.pct(C.rootProgPerUse * used, 0) + ',当前 ' + U.pct(s.rootProg, 0);
         break;
       case 'break':
-        return '此丹将在冲击大境界时自动服用。';
+        return '突破丹需在人物页点击「突破」时选择服用(仅限' + D.realmMajors[u.major].name + '期)。';
       default:
         return '此物无法直接使用。';
     }
@@ -296,6 +319,9 @@ XX.sys.inv = (function () {
     if (slot == null) slot = I.firstFreeTreasure();
     if (slot < 0) return false;
     var old = s.equip[slot];
+    if (I.isSpecial(sl) && !I.isSpecial(old) && I.specialEquipped() >= C.specialTreasureMax) {
+      XX.ui.toast('特殊法宝最多同时装备 ' + C.specialTreasureMax + ' 件', 'warn'); return false;
+    }
     s.equip[slot] = sl;
     if (old) s.bag.slots[idx] = old; else s.bag.slots.splice(idx, 1);
     XX.bus.emit('bag'); XX.bus.emit('stats');
@@ -324,7 +350,7 @@ XX.sys.inv = (function () {
     var all = others.concat(stacks);
     all.sort(function (a, c) {
       var A = D.items[a.id], B = D.items[c.id];
-      return (order[A.type] - order[B.type]) || ((c.q != null ? c.q : B.q) - (a.q != null ? a.q : A.q)) || (gOf(c) - gOf(a)) || ((c.lv || 0) - (a.lv || 0)) || (a.id < c.id ? -1 : a.id > c.id ? 1 : 0);
+      return (order[A.type] - order[B.type]) || ((c.q != null ? c.q : D.qOf(c.id, c.g)) - (a.q != null ? a.q : D.qOf(a.id, a.g))) || (gOf(c) - gOf(a)) || ((c.lv || 0) - (a.lv || 0)) || (a.id < c.id ? -1 : a.id > c.id ? 1 : 0);
     });
     b.slots = all;
     XX.bus.emit('bag');
@@ -332,7 +358,7 @@ XX.sys.inv = (function () {
 
   I.grant = function (list) {
     var got = [];
-    list.forEach(function (p) { var r = I.add(p[0], p[1], false, p[2]); if (r.added) got.push([p[0], r.added]); });
+    list.forEach(function (p) { var r = I.add(p[0], p[1], false, p[2]); if (r.added) got.push([p[0], r.added, p[2] && p[2].g]); });
     return got;
   };
 

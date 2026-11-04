@@ -28,8 +28,7 @@ XX.store = (function () {
   };
 
   S.newGame = function (opts) {
-    var now = Date.now(), sig = S.innateSkill(opts.charId);
-    var stLv = {}; if (sig) stLv[sig] = 1;
+    var now = Date.now();
     var st = {
       v: C.version,
       created: now,
@@ -46,16 +45,18 @@ XX.store = (function () {
       jade: C.start.jade,
       bag: { cap: C.bagCapacity, slots: [] },
       equip: [null, null, null, null],
-      /* 初始不装备功法与技能(已习得引气诀与本命技能,可在人物页装配) */
-      skills: { gongfa: null, shentong: [null, null, null, null], learnedGongfa: ['yinqi'], learnedShentong: sig ? [sig] : [],
-        gfLv: { yinqi: 1 }, stLv: stLv, frags: { gongfa: {}, shentong: {} } },
+      /* 0.1.5:开局没有任何功法与技能,需通过历练/秘境/商城获取玉简 */
+      skills: { gongfa: null, shentong: [null, null, null, null], learnedGongfa: [], learnedShentong: [],
+        gfLv: {}, stLv: {}, frags: { gongfa: {}, shentong: {} } },
       bp: S.baseBlueprints(),
       timed: {},
       perm: { hpPct: 0, comprehension: 0, rateBonus: 0 },
-      buffs: { breakBonus: 0 },
+      buffs: {},
+      attrUsed: {},
       cave: {
         lv: { alchemy: 1, forge: 1, field: 1, mine: 1 },
         arrays: {},
+        activeArrays: [],
         alchemy: null,
         forge: null,
         field: { plots: [], queue: [null, null, null] },
@@ -97,6 +98,13 @@ XX.store = (function () {
     st.blueprints = st.blueprints || {};
     st.recipes = st.recipes || {};
     st.timed = st.timed || {};
+    var bmap = { pill_zhuji: 'pill_brk0', pill_ningjin: 'pill_brk1', pill_huaying: 'pill_brk2', pill_ningshen: 'pill_brk3', pill_lianxu: 'pill_brk4',
+      pill_heti: 'pill_brk5', pill_dacheng: 'pill_brk6', pill_dujie: 'pill_brk7', pill_peiyuan: 'pill_attr_hp' };
+    var rmap = { a_zhuji: 'a_brk0', a_ningjin: 'a_brk1', a_huaying: 'a_brk2', a_ningshen: 'a_brk3', a_peiyuan: 'a_attr_hp' };
+    st.bag.slots = st.bag.slots.map(function (sl) {
+      if (sl && bmap[sl.id]) { var ns = { id: bmap[sl.id], n: sl.n || 1 }; if (D.items[ns.id].qByGrade) ns.g = sl.g || 2; return ns; }
+      return sl;
+    });
     /* 0.1.3:洞府设施等级、阵法上限 10、灵田地块由等级决定 */
     var cv = st.cave;
     if (!cv.lv) {
@@ -168,6 +176,34 @@ XX.store = (function () {
     }).filter(function (x) { return x; });
     pend.forEach(function (p) { if (D.items[p[0]].scroll) XX.sys.inv.gainScroll(p[0], p[1]); else XX.sys.inv.gainBlueprint(p[0], p[1]); });
     if (st.skills.gongfa && !D.gongfa[st.skills.gongfa]) st.skills.gongfa = null;
+    /* 0.1.5:突破丹按大境界统一、属性丹、阵法 5 槽、特殊法宝最多 2 件 */
+    st.attrUsed = st.attrUsed || {};
+    var slots2 = [];
+    st.bag.slots.forEach(function (sl) {
+      if (!sl || !D.items[sl.id]) return;
+      var same = slots2.filter(function (x) { return x.id === sl.id && x.g === sl.g && x.n != null && D.items[sl.id].type !== 'equip'; })[0];
+      if (same && sl.n != null) same.n += sl.n; else slots2.push(sl);
+    });
+    st.bag.slots = slots2;
+    Object.keys(rmap).forEach(function (o) { if (st.bp && st.bp[o]) { var nb = st.bp[rmap[o]]; if (!nb || nb.lv < st.bp[o].lv) st.bp[rmap[o]] = st.bp[o]; delete st.bp[o]; } });
+    Object.keys(st.bp).forEach(function (rid) {
+      var ok = D.alchemyRecipes.concat(D.forgeRecipes).concat(D.arrays).some(function (r) { return r.id === rid; });
+      if (!ok) delete st.bp[rid];
+    });
+    var base = S.baseBlueprints(); Object.keys(base).forEach(function (k) { if (!st.bp[k]) st.bp[k] = base[k]; });
+    delete st.buffs.breakBonus;
+    var cv2 = st.cave;
+    cv2.arrays = cv2.arrays || {};
+    if (!cv2.activeArrays) {
+      cv2.activeArrays = Object.keys(cv2.arrays).filter(function (k) { return cv2.arrays[k] > 0; })
+        .sort(function (a, b) { return cv2.arrays[b] - cv2.arrays[a]; }).slice(0, C.arrayActiveMax);
+    }
+    cv2.activeArrays = cv2.activeArrays.filter(function (k) { return cv2.arrays[k] > 0; }).slice(0, C.arrayActiveMax);
+    var spc = 0;
+    st.equip = st.equip.map(function (e) {
+      if (e && D.items[e.id] && D.items[e.id].forged) { spc++; if (spc > C.specialTreasureMax) { st.bag.slots.push(e); return null; } }
+      return e;
+    });
     st.battleSpeed = st.battleSpeed || 1;
     if (st.v !== C.version) st.shop = { period: -1, bought: {} };   // 版本更新后商城货架重新生成
     st.v = C.version;

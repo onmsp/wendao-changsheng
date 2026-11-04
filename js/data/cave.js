@@ -26,23 +26,29 @@ XX.data.tierByLv = function (lv) { return Math.min(4, Math.floor((lv - 1) / 2));
 XX.data.lvForTier = function (q) { return q * 2 + 1; };
 
 /*
- * 阵法:白~金品质;白/绿/蓝 1 种效果,紫/金 2 种效果
- * 需持有对应阵图(base:true 开局即有)才能布置,布置即 1 级;每升 1 级效果 +20%,10 级 = 1 颗星
- * 阵图等级决定效果倍率(config.bpEffect);效果字段:rate atkPct defPct hpPct dodge critDmg fieldSpeed mineBonus
+ * 阵法:每种品质(白~金)都有 修炼速度 / 攻击 / 防御 / 气血 四类阵法,同时最多 5 个阵法生效(config.arrayActiveMax)
+ * 白/绿/蓝 1 种效果,紫/金 2 种效果;需持有阵图(base:true 开局即有);布置即 1 级,每升 1 级效果 +20%,10 级 = ★
+ * 效果字段:rate atkPct defPct hpPct mpPct critDmg dodge crit
  */
-XX.data.arrays = [
-  { id: 'juling', name: '聚灵阵', q: 0, base: true, icon: 'icon/array', effects: { rate: 0.05 }, stoneBase: 300, ironBase: 2, jadeBase: 20, desc: '汇聚天地灵气,提升修炼速度。' },
-  { id: 'jinguang', name: '金光阵', q: 0, base: true, icon: 'icon/array', hue: 180, effects: { defPct: 0.05 }, stoneBase: 300, ironBase: 2, jadeBase: 20, desc: '金光护体,提升防御。' },
-  { id: 'shafa', name: '杀伐阵', q: 1, icon: 'icon/trial', effects: { atkPct: 0.06 }, stoneBase: 400, ironBase: 3, jadeBase: 20, desc: '以煞气淬体,提升攻击。' },
-  { id: 'yuanling', name: '元灵阵', q: 1, icon: 'icon/field', effects: { fieldSpeed: 0.1 }, stoneBase: 400, ironBase: 3, jadeBase: 20, desc: '滋养灵田,加快灵植生长。' },
-  { id: 'jubao', name: '聚宝阵', q: 2, icon: 'icon/mine', effects: { mineBonus: 0.15 }, stoneBase: 600, ironBase: 4, jadeBase: 25, desc: '牵引地脉,提升灵矿产出。' },
-  { id: 'hushan', name: '九宫护山阵', q: 2, icon: 'icon/array', hue: 90, effects: { hpPct: 0.08 }, stoneBase: 600, ironBase: 4, jadeBase: 25, desc: '九宫护山,固本培元。' },
-  { id: 'xingdou', name: '周天星斗阵', q: 3, icon: 'icon/array', hue: 250, effects: { rate: 0.08, atkPct: 0.05 }, stoneBase: 1000, ironBase: 6, jadeBase: 35, desc: '引周天星力,修炼与攻伐兼备。' },
-  { id: 'liangyi', name: '两仪微尘阵', q: 3, icon: 'icon/array', hue: 300, effects: { defPct: 0.08, dodge: 0.02 }, stoneBase: 1000, ironBase: 6, jadeBase: 35, desc: '两仪化微尘,来犯者难近其身。' },
-  { id: 'zhuxian', name: '诛仙剑阵', q: 4, icon: 'icon/trial', hue: 200, effects: { atkPct: 0.1, critDmg: 0.12 }, stoneBase: 1600, ironBase: 8, jadeBase: 50, desc: '四剑镇四方,杀伐无双。' },
-  { id: 'hunyuan', name: '混元太极阵', q: 4, icon: 'icon/array', hue: 40, effects: { rate: 0.12, hpPct: 0.08 }, stoneBase: 1600, ironBase: 8, jadeBase: 50, desc: '混元归一,太极生生。' }
+XX.data.arrayTypes = [
+  { key: 'rate', label: '修炼速度', icon: 'icon/array', names: ['聚灵阵', '灵泉阵', '周天星斗阵', '九天聚灵阵', '混元太极阵'], extra: { k: 'mpPct', r: 0.6 } },
+  { key: 'atkPct', label: '攻击', icon: 'icon/trial', names: ['杀伐阵', '锐金阵', '天罡剑阵', '诛仙剑阵', '戮仙剑阵'], extra: { k: 'critDmg', r: 1.2 } },
+  { key: 'defPct', label: '防御', icon: 'icon/array', hue: 180, names: ['金光阵', '厚土阵', '玄武阵', '两仪微尘阵', '八卦天机阵'], extra: { k: 'dodge', r: 0.25 } },
+  { key: 'hpPct', label: '气血', icon: 'icon/field', names: ['青木阵', '长春阵', '九宫护山阵', '生生造化阵', '不灭金身阵'], extra: { k: 'crit', r: 0.25 } }
 ];
-XX.data.arrayEffectName = { rate: '修炼速度', atkPct: '攻击', defPct: '防御', hpPct: '气血', dodge: '闪避率', critDmg: '暴击伤害', fieldSpeed: '灵植生长', mineBonus: '灵矿产出' };
+XX.data.arrayBase = [0.03, 0.05, 0.08, 0.12, 0.18];       // 各品质主效果基础值(1 级)
+XX.data.arrayIds = { rate: ['juling', 'lingquan', 'xingdou', 'jiutian', 'hunyuan'], atkPct: ['shafa', 'ruijin', 'tiangang', 'zhuxian', 'luxian'],
+  defPct: ['jinguang', 'houtu', 'xuanwu', 'liangyi', 'bagua'], hpPct: ['qingmu', 'changchun', 'hushan', 'zaohua', 'jinshen'] };
+XX.data.arrays = [];
+XX.data.arrayTypes.forEach(function (t) {
+  for (var q = 0; q < 5; q++) {
+    var eff = {}; eff[t.key] = XX.data.arrayBase[q];
+    if (q >= 3) eff[t.extra.k] = Math.round(XX.data.arrayBase[q] * t.extra.r * 1000) / 1000;
+    XX.data.arrays.push({ id: XX.data.arrayIds[t.key][q], name: t.names[q], q: q, base: q === 0, icon: t.icon, hue: (t.hue || 0) + q * 40, effects: eff,
+      stoneBase: [300, 600, 1200, 2400, 4800][q], ironBase: [2, 3, 4, 6, 8][q], jadeBase: [15, 25, 40, 60, 90][q], desc: '提升' + t.label + (q >= 3 ? '并附带额外效果' : '') + '。' });
+  }
+});
+XX.data.arrayEffectName = { rate: '修炼速度', atkPct: '攻击', defPct: '防御', hpPct: '气血', mpPct: '灵力', critDmg: '暴击伤害', dodge: '闪避率', crit: '暴击率' };
 XX.data.makeBlueprints('array', XX.data.arrays);
 
 /* 灵田:地块数 = min(maxPlots, basePlots + 等级);seedQ 为灵种品阶,需要对应灵田等级 */

@@ -128,17 +128,17 @@ XX.sys.battle = (function () {
   B.dropAllowed = function (d, isSecret) {
     var it = D.items[d[0]];
     if (!it || it.noDrop) return false;
-    var q = it.q || 0;
-    if (isSecret) return q >= C.secretMinQ && !(it.type === 'special' && !it.scroll && !it.bpRef);
-    return q <= C.dungeonMaxQ;
+    var q = D.qOf(d[0], d[4]);
+    if (isSecret) return q >= C.secretMinQ && !(it.type === 'special' && !it.scroll && !it.bpRef && !it.secretOk);
+    return q <= C.dungeonMaxQ && !it.secretOk;
   };
   B.dropChance = function (d, isSecret) {
     if (!B.dropAllowed(d, isSecret)) return 0;
-    return d[1] * C.tierDropMul[D.items[d[0]].q || 0];
+    return d[1] * C.tierDropMul[D.qOf(d[0], d[4])];
   };
   B.rollDrops = function (drops, luck, isSecret) {
     var res = [];
-    drops.forEach(function (d) { if (Math.random() < B.dropChance(d, isSecret) * (1 + luck / 100)) res.push([d[0], U.randInt(d[2], d[3])]); });
+    drops.forEach(function (d) { if (Math.random() < B.dropChance(d, isSecret) * (1 + luck / 100)) res.push([d[0], U.randInt(d[2], d[3]), d[4] ? { g: d[4] } : undefined]); });
     return res;
   };
 
@@ -165,7 +165,9 @@ XX.sys.battle = (function () {
       var stone = U.randInt(area.stone[0], area.stone[1]);
       st().stone += stone;
       var exp = XX.sys.player.addExp(U.randInt(area.exp[0], area.exp[1]));
-      r.reward = { stone: stone, exp: exp, items: XX.sys.inv.grant(B.rollDrops(area.drops, luck)), treasure: null };
+      /* 副本固定掉落强化石 */
+      var drops = [['stone_qh', U.randInt(area.qh[0], area.qh[1])]].concat(B.rollDrops(area.drops, luck));
+      r.reward = { stone: stone, exp: exp, items: XX.sys.inv.grant(drops), treasure: null };
       var eq = B.rollTreasure(C.treasureDrop.dungeon, area.power);
       if (eq && XX.sys.inv.addInstance(eq)) r.reward.treasure = eq;
       st().outing.wins++;

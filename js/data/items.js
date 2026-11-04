@@ -19,7 +19,7 @@ XX.data.equipQualityMul = [1, 1.5, 2.2, 3.2, 4.6];
 /* 法宝等级成长:属性 × levelGrow^等级(等级≈产出地图的强度) */
 XX.data.equipLevelGrow = 1.16;
 /* 按等级给普通法宝加材质前缀 */
-XX.data.equipTierNames = [[0, ''], [3, '玄铁'], [6, '寒玉'], [9, '紫金'], [12, '星辰'], [16, '九幽'], [19, '天雷']];
+XX.data.equipTierNames = [[0, ''], [3, '玄铁'], [6, '寒玉'], [9, '紫金'], [12, '星辰'], [16, '九幽'], [19, '天雷'], [22, '太虚'], [26, '混元'], [30, '不朽'], [34, '仙灵'], [38, '劫火']];
 
 XX.data.items = {
   /* ---------- 材料 ---------- */
@@ -55,26 +55,15 @@ XX.data.items = {
   pill_juqi: { name: '聚气丹', type: 'pill', icon: 'item/pill_red', q: 0, price: 5, desc: '服用后立即获得 100 点修为。', use: { kind: 'exp', amount: 100 } },
   pill_julingsan: { name: '聚灵散', type: 'pill', icon: 'item/bottle', hue: 120, q: 0, price: 12, desc: '30 分钟内修炼速度 +15%(多颗可叠加时长)。', use: { kind: 'timed', key: 'rate', v: 0.15, min: 30 } },
   pill_yangyuan: { name: '养元丹', type: 'pill', icon: 'item/pill_red', hue: 200, q: 1, price: 40, desc: '服用后立即获得 800 点修为。', use: { kind: 'exp', amount: 800 } },
-  pill_peiyuan: { name: '培元丹', type: 'pill', icon: 'item/bottle', q: 1, price: 40, desc: '固本培元,永久提升气血 1%(累计上限 50%)。', use: { kind: 'perm', key: 'hpPct', add: 0.01, cap: 0.5 } },
   pill_jingang: { name: '金刚丹', type: 'pill', icon: 'item/pill_gold', hue: 60, q: 1, price: 35, desc: '60 分钟内防御 +25%。', use: { kind: 'timed', key: 'def', v: 0.25, min: 60 } },
   pill_kuangxue: { name: '狂血丹', type: 'pill', icon: 'item/pill_red', hue: 330, q: 2, price: 120, desc: '60 分钟内攻击 +25%。', use: { kind: 'timed', key: 'atk', v: 0.25, min: 60 } },
   pill_julingdan: { name: '聚灵丹', type: 'pill', icon: 'item/bottle', hue: 200, q: 2, price: 200, desc: '60 分钟内修炼速度 +30%(与聚灵散不叠加,取较高者)。', use: { kind: 'timed', key: 'rate', v: 0.3, min: 60 } },
-  pill_pojing: { name: '破境丹', type: 'pill', icon: 'item/pill_gold', hue: 280, q: 2, price: 250, desc: '特殊丹药。服用后下一次大境界突破成功率 +15%(可叠加至 45%)。', use: { kind: 'buff', key: 'breakBonus', add: 0.15, cap: 0.45 } },
   pill_ningyuan: { name: '凝元丹', type: 'pill', icon: 'item/pill_red', hue: 280, q: 3, price: 600, desc: '服用后立即获得 6000 点修为。', use: { kind: 'exp', amount: 6000 } },
   pill_wudao: { name: '悟道丹', type: 'pill', icon: 'item/pill_gold', hue: 120, q: 3, price: 800, desc: '特殊丹药。明心见性,永久提升悟性 1 点(累计上限 20)。', use: { kind: 'perm', key: 'comprehension', add: 1, cap: 20 } },
-  pill_fuyuan: { name: '福缘丹', type: 'pill', icon: 'item/pill_gold', hue: 200, q: 3, price: 800, desc: '特殊丹药。永久提升气运 1 点(累计上限 10),气运影响突破与掉落。', use: { kind: 'perm', key: 'luck', add: 1, cap: 10 } },
-  pill_zhuji: { name: '筑基丹', type: 'pill', icon: 'item/pill_gold', q: 1, price: 200, desc: '突破至筑基期所必需。突破时自动服用。', use: { kind: 'break' } },
-  pill_ningjin: { name: '凝金丹', type: 'pill', icon: 'item/pill_gold', hue: 25, q: 2, price: 600, desc: '凝结金丹所必需。突破时自动服用。', use: { kind: 'break' } },
-  pill_huaying: { name: '化婴丹', type: 'pill', icon: 'item/pill_gold', hue: 80, q: 3, price: 1500, desc: '碎丹成婴所必需。突破时自动服用。', use: { kind: 'break' } },
-  pill_ningshen: { name: '凝神丹', type: 'pill', icon: 'item/pill_gold', hue: 150, q: 4, price: 4000, desc: '元神化形所必需。突破时自动服用。', use: { kind: 'break' } },
-  pill_lianxu: { name: '炼虚丹', type: 'pill', icon: 'item/pill_gold', hue: 200, q: 4, price: 9000, desc: '炼神返虚所必需。突破时自动服用。', use: { kind: 'break' } },
-  pill_heti: { name: '合体丹', type: 'pill', icon: 'item/pill_gold', hue: 250, q: 4, price: 20000, desc: '法相合一所必需。突破时自动服用。', use: { kind: 'break' } },
-  pill_dacheng: { name: '大乘丹', type: 'pill', icon: 'item/pill_gold', hue: 300, q: 4, price: 50000, desc: '大道将成所必需。突破时自动服用。', use: { kind: 'break' } },
-  pill_dujie: { name: '渡劫丹', type: 'pill', icon: 'item/pill_gold', hue: 330, q: 4, price: 99999, desc: '直面天劫所必需。突破时自动服用。', use: { kind: 'break' } },
+  pill_fuyuan: { name: '福缘丹', type: 'pill', icon: 'item/pill_gold', hue: 200, q: 3, price: 800, desc: '特殊丹药。永久提升气运 2 点(累计上限 40),气运影响突破与掉落。', use: { kind: 'perm', key: 'luck', add: 2, cap: 40 } },
 
   /* ---------- 特殊(一件一格) ---------- */
-  sp_pouch: { name: '储物袋', type: 'special', icon: 'item/pouch', q: 2, price: 100, desc: '使用后背包容量永久 +10 格。扩展上限 200 格,元婴之后每个大境界上限 +50。', use: { kind: 'bag', add: 10 } },
-  sp_talisman: { name: '破境符', type: 'special', icon: 'item/talisman', q: 1, price: 150, desc: '使用后,下一次大境界突破成功率 +15%(可叠加至 45%)。', use: { kind: 'buff', key: 'breakBonus', add: 0.15, cap: 0.45 } },
+  sp_pouch: { name: '储物袋', type: 'special', icon: 'item/pouch', q: 3, price: 300, secretOk: true, noShop: true, desc: '只能在秘境中低概率获得。使用后背包容量永久 +10 格。扩展上限 200 格,元婴之后每个大境界上限 +50。', use: { kind: 'bag', add: 10 } },
   sp_stonebag: { name: '灵石袋', type: 'special', icon: 'item/pouch', hue: 180, q: 1, price: 50, desc: '打开可获得 1000 × (大境界+1) 灵石。', use: { kind: 'stone', base: 1000 } },
   /* 洗灵液:只能炼制(需丹方),图纸等级决定可达最高灵根 */
   sp_xiling: { name: '洗灵液', type: 'pill', special: true, noDrop: true, icon: 'item/gourd', q: 3, price: 1000,
@@ -137,3 +126,72 @@ XX.data.forgeTreasures = {
 
 /* 洞府升级材料 */
 XX.data.items.ore_iron_g = { name: '玄铁精', type: 'material', icon: 'item/iron', hue: 100, q: 1, price: 15, desc: '千锤百炼的玄铁精华,洞府 6 级以上升级与法宝高阶强化所需。' };
+
+
+/* ========== 0.1.5 新增 ========== */
+(function () {
+  var D = XX.data, I = D.items;
+  /* 强化石:历练副本固定掉落,只能强化普通法宝 */
+  I.stone_qh = { name: '强化石', type: 'material', icon: 'icon/lingshi', hue: 200, q: 0, price: 5, desc: '凝聚天地精华的灵石,历练副本固定掉落。用于强化普通法宝(特殊法宝无法强化)。' };
+
+  /* 化神~渡劫材料(紫色,副本可掉落)与金色珍材(仅秘境) */
+  var mats = [
+    ['herb_jiuye', '九叶灵参', 'item/herb', 30, 3, 260, '九叶齐生的灵参,化神修士炼丹所需。'],
+    ['ore_xujin', '虚空金', 'item/coldiron', 300, 3, 300, '生于虚空裂隙的奇金,炼虚期炼器主材。'],
+    ['herb_wudaocha', '悟道茶', 'item/herb', 280, 3, 320, '传闻饮之可悟大道,炼虚期丹材。'],
+    ['core_dao', '道纹妖丹', 'item/core', 100, 3, 360, '妖丹上浮现天然道纹,合体期珍材。'],
+    ['crystal_xing', '星魂晶', 'item/bloodcrystal', 200, 3, 380, '蕴藏星辰之魂的晶石。'],
+    ['ore_tianjing', '天晶', 'item/coldiron', 60, 3, 420, '天外坠落的晶石,大乘期炼器主材。'],
+    ['herb_longxue', '龙血藤', 'item/wood', 330, 3, 440, '吸食真龙之血而生的灵藤。'],
+    ['stone_jie', '劫雷石', 'item/darkiron', 60, 3, 480, '天劫雷霆淬炼万年的奇石,渡劫期所需。'],
+    ['ore_hundun', '混沌石', 'item/darkiron', 250, 4, 1200, '开天辟地遗留的混沌之石,只在秘境出现。'],
+    ['herb_busi', '不死神药', 'item/herb', 50, 4, 1500, '传说中的神药,只在秘境出现。'],
+    ['ore_xianjin', '仙金', 'item/iron', 45, 4, 1800, '仙界遗落的神金,只在秘境出现。']
+  ];
+  mats.forEach(function (m) { I[m[0]] = { name: m[1], type: 'material', icon: m[2], hue: m[3], q: m[4], price: m[5], desc: m[6] }; });
+
+  /* 后期修为丹 */
+  I.pill_tongxuan = { name: '通玄丹', type: 'pill', icon: 'item/pill_red', hue: 160, q: 3, price: 2000, desc: '服用后立即获得 40000 点修为。', use: { kind: 'exp', amount: 40000 } };
+  I.pill_taixu = { name: '太虚丹', type: 'pill', icon: 'item/pill_gold', hue: 260, q: 4, price: 8000, desc: '服用后立即获得 200000 点修为。', use: { kind: 'exp', amount: 200000 } };
+  I.pill_jiuzhuan = { name: '九转金丹', type: 'pill', icon: 'item/pill_gold', hue: 10, q: 4, price: 30000, desc: '服用后立即获得 1000000 点修为。', use: { kind: 'exp', amount: 1000000 } };
+
+  /*
+   * 突破丹:每个大境界一种,只能在该大境界内服用(突破时选择是否服用)
+   * qByGrade:品质由炼制时的丹方等级决定(1级白 2级绿 3级蓝 4级紫 5级金),成功率 +10%/15%/20%/25%/30%
+   */
+  D.breakPillNames = ['筑基丹', '凝金丹', '化婴丹', '凝神丹', '炼虚丹', '合体丹', '大乘丹', '渡劫丹', '飞升丹'];
+  D.realmMajors.forEach(function (m, mi) {
+    I['pill_brk' + mi] = { name: D.breakPillNames[mi], type: 'pill', qByGrade: true, icon: 'item/pill_gold', hue: mi * 40, q: 0, price: 100 * Math.pow(2.2, mi),
+      desc: m.name + '期专用突破丹,突破时可选择服用:白 +10%,每高一品质再 +5%(金 +30%)。品质由炼制所用丹方等级决定。', use: { kind: 'break', major: mi } };
+  });
+
+  /* 属性丹:永久提升属性,每种每个大境界有累计服用上限;效果随品质(丹方等级)提升 */
+  D.attrPills = {
+    pill_attr_hp: { name: '气血丹', key: 'hpPct', v: 0.006, label: '气血', hue: 0 },
+    pill_attr_atk: { name: '力元丹', key: 'atkPct', v: 0.005, label: '攻击', hue: 300 },
+    pill_attr_def: { name: '铁骨丹', key: 'defPct', v: 0.005, label: '防御', hue: 60 },
+    pill_attr_mp: { name: '灵元丹', key: 'mpPct', v: 0.006, label: '灵力', hue: 200 }
+  };
+  Object.keys(D.attrPills).forEach(function (id) {
+    var a = D.attrPills[id];
+    I[id] = { name: a.name, type: 'pill', qByGrade: true, icon: 'item/bottle', hue: a.hue, q: 0, price: 60,
+      desc: '属性丹。每颗永久提升' + a.label + ' ' + (a.v * 100).toFixed(1) + '%(随品质提升,金色 ×2)。每种累计服用上限:炼气期 5 颗、筑基期 10 颗,之后每突破一个大境界上限 +15。', use: { kind: 'attr', key: a.key, v: a.v } };
+  });
+
+  /* 后期特殊法宝(炼器) */
+  var late = {
+    eq_donghuang: { name: '东皇钟', q: 4, icon: 'item/bell', hue: 40, desc: '先天至宝,钟鸣镇压诸天。', stats: { def: 60, hp: 400, mp: 120 }, effects: ['thorns', 'hpPct'] },
+    eq_zhuxianjian: { name: '诛仙剑', q: 4, icon: 'item/sword', hue: 300, desc: '诛仙四剑之首,非四圣不可破。', stats: { atk: 80, crit: 0.05 }, effects: ['pierce', 'critDmg'] },
+    eq_taiji: { name: '太极图', q: 4, icon: 'item/mirror', hue: 180, desc: '一图化阴阳,攻守兼备。', stats: { atk: 50, def: 50, sense: 50 }, effects: ['double', 'dodge'] },
+    eq_hundunzhu: { name: '混沌珠', q: 4, icon: 'item/pagoda', hue: 250, desc: '混沌初开凝结之珠,蕴藏无穷灵机。', stats: { hp: 500, mp: 200, sense: 60 }, effects: ['rate', 'lifesteal'] }
+  };
+  Object.keys(late).forEach(function (id) { D.forgeTreasures[id] = late[id]; var t = late[id];
+    I[id] = { name: t.name, type: 'equip', forged: true, icon: t.icon, hue: t.hue, q: t.q, price: 60 * Math.pow(2.5, t.q), desc: t.desc, stats: t.stats, effects: t.effects }; });
+})();
+
+/* 物品的实际品质:按品质着色的丹药(突破丹、属性丹)品质 = 品级 - 1 */
+XX.data.qOf = function (id, g) {
+  var it = XX.data.items[id];
+  if (!it) return 0;
+  return it.qByGrade ? Math.max(0, Math.min(4, (g || 1) - 1)) : (it.q || 0);
+};

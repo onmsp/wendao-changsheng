@@ -75,15 +75,15 @@ XX.ui = (function () {
       html += '<div class="reward"><div class="item-icon q2"><img src="' + U.img(e.icon) + '" alt=""></div><span>' + e.text + '</span></div>';
     });
     items.forEach(function (p) {
-      html += '<div class="reward">' + U.itemIcon(p[0]) + '<span>' + U.itemName(p[0]) + ' ×' + p[1] + '</span></div>';
+      html += '<div class="reward">' + U.itemIcon(p[0], '', null, { g: p[2] }) + '<span>' + U.itemName(p[0], p[2]) + ' ×' + p[1] + '</span></div>';
     });
     return html + '</div>';
   };
 
   /* 物品详情弹窗(背包、商城、配方共用) */
-  ui.itemInfo = function (id, extraHtml) {
+  ui.itemInfo = function (id, extraHtml, g) {
     var it = XX.data.items[id];
-    var html = '<div class="item-detail">' + U.itemIcon(id, 'lg') + '<div><div class="item-detail-name">' + U.itemName(id) + '</div>' +
+    var html = '<div class="item-detail">' + U.itemIcon(id, 'lg', null, { g: g }) + '<div><div class="item-detail-name">' + U.itemName(id, g) + '</div>' +
       '<div class="muted">' + (it.bpRef ? '图纸' : it.scroll ? (it.scroll === 'gongfa' ? '功法玉简' : '技能玉简') : XX.data.itemTypes[it.type].name) + '</div></div></div>' +
       '<p class="item-desc">' + it.desc + '</p>' + (extraHtml || '');
     return html;

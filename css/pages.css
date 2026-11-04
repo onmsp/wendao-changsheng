@@ -375,3 +375,18 @@
 .plot.empty span { color: var(--muted); font-size: 11px; }
 .enh-next { margin-top: 8px; padding: 8px; background: rgba(0, 0, 0, .25); border-radius: 6px; display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
 .enh-cost { margin-top: 4px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+
+/* ---------- 0.1.5:阵法生效槽 / 突破选丹 ---------- */
+.arr-head .arr-slots { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.arr-slot { flex: 1 1 56px; min-width: 56px; text-align: center; font-size: 12px; padding: 4px 2px; border-radius: 8px; border: 1px dashed var(--line); color: #7f8aa0; }
+.arr-slot.on { border: 1px solid var(--qc); color: var(--qc); background: rgba(255, 255, 255, .06); cursor: pointer; box-shadow: 0 0 8px -2px var(--qc); }
+.chip-row { display: flex; gap: 6px; overflow-x: auto; margin: 0 0 10px; padding-bottom: 2px; }
+.chip { flex: none; border: 1px solid var(--line); background: rgba(10, 16, 28, .6); color: var(--text); border-radius: 14px; padding: 4px 12px; font-size: 12px; cursor: pointer; }
+.chip.on { background: rgba(232, 199, 122, .22); color: var(--gold-2); border-color: var(--gold); }
+.arr-card.active { box-shadow: inset 0 0 0 1px var(--qc), 0 0 12px -4px var(--qc); }
+.on-tag { font-size: 10px; color: #0d1420; background: var(--qc); border-radius: 6px; padding: 0 5px; vertical-align: middle; }
+.btn-col { display: flex; flex-direction: column; gap: 6px; flex: none; }
+.brk-tb { width: 100%; max-width: 260px; margin: 6px auto; font-size: 13px; border-collapse: collapse; }
+.brk-tb td { padding: 3px 6px; border-bottom: 1px dashed var(--line); }
+.brk-tb td:last-child { text-align: right; }
+.seed.on { border-color: var(--gold); box-shadow: 0 0 10px -3px var(--gold); background: rgba(232, 199, 122, .12); }

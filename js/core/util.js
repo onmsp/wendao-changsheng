@@ -85,19 +85,19 @@ XX.util = (function () {
   U.itemIcon = function (id, extraCls, qOverride, extra) {
     var it = XX.data.items[id];
     if (!it) return '<div class="item-icon"></div>';
-    var qi = qOverride != null ? qOverride : (it.q || 0), q = XX.config.qualities[qi];
-    var style = it.hue ? ' style="filter:hue-rotate(' + it.hue + 'deg) saturate(1.1)"' : '';
     extra = extra || {};
+    var qi = qOverride != null ? qOverride : XX.data.qOf(id, extra.g), q = XX.config.qualities[qi];
+    var style = it.hue ? ' style="filter:hue-rotate(' + it.hue + 'deg) saturate(1.1)"' : '';
     return '<div class="item-icon q' + qi + ' ' + (extraCls || '') + '" style="--qc:' + q.color + '">' +
       '<img src="' + U.img(it.icon) + '"' + style + ' alt="">' +
       (it.badge ? '<span class="badge">' + it.badge + '</span>' : '') +
-      (extra.g > 1 ? '<span class="gbadge">' + '✦'.repeat(extra.g - 1) + '</span>' : '') +
+      (extra.g > 1 && !it.qByGrade ? '<span class="gbadge">' + '✦'.repeat(extra.g - 1) + '</span>' : '') +
       (extra.lv ? '<span class="lvbadge">' + (extra.lv >= XX.config.maxLv ? '★' : '+' + (extra.lv - 1)) + '</span>' : '') + '</div>';
   };
-  U.itemName = function (id) {
+  U.itemName = function (id, g) {
     var it = XX.data.items[id];
     if (!it) return id;
-    return '<span class="qname" style="color:' + XX.config.qualities[it.q || 0].color + '">' + it.name + '</span>';
+    return '<span class="qname" style="color:' + XX.config.qualities[XX.data.qOf(id, g)].color + '">' + it.name + '</span>';
   };
   U.qColor = function (q) { return XX.config.qualities[q || 0].color; };
 

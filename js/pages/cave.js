@@ -58,18 +58,30 @@ XX.pages.cave = (function () {
 
   /* ---------- 阵法 ---------- */
   function effText(eff) { return Object.keys(eff).map(function (k) { return D.arrayEffectName[k] + ' +' + U.pct(eff[k], 1); }).join(' · '); }
+  var arrType = 'all';
   PG.draw_array = function () {
-    var P = XX.sys.player;
-    return '<p class="section-tip">阵法需持有阵图方可布置;每升 1 级效果 +20%,满 10 级为 ★。阵图等级越高效果越强。</p>' + D.arrays.map(function (a) {
-      var lv = P.arrayLv(a.id), has = I().bpLv(a.id) > 0, max = lv >= C.maxLv, c = max || !has ? null : K().arrayCost(a.id);
+    var P = XX.sys.player, act = P.activeArrays(), tot = P.arrayEffects();
+    var head = '<div class="arr-head card"><div><b>生效阵法 ' + act.length + ' / ' + C.arrayActiveMax + '</b>' +
+      '<div class="arr-slots">' + Array.apply(null, Array(C.arrayActiveMax)).map(function (_, i) {
+        var a = act[i] && K().arrayDef(act[i]);
+        return a ? '<span class="arr-slot on" style="--qc:' + U.qColor(a.q) + '" data-act="arrtog" data-id="' + a.id + '">' + a.name + '</span>' : '<span class="arr-slot">空</span>';
+      }).join('') + '</div><div class="small ok">' + (Object.keys(tot).length ? effText(tot) : '<span class="muted">暂无阵法生效</span>') + '</div></div></div>';
+    var chips = '<div class="chip-row">' + [['all', '全部']].concat(D.arrayTypes.map(function (t) { return [t.key, t.label]; })).map(function (c) {
+      return '<button class="chip' + (arrType === c[0] ? ' on' : '') + '" data-act="arrtype" data-k="' + c[0] + '">' + c[1] + '</button>';
+    }).join('') + '</div>';
+    var list = D.arrays.filter(function (a) { return arrType === 'all' || a.effects[arrType] != null && D.arrayIds[arrType].indexOf(a.id) >= 0; });
+    list.sort(function (x, y) { return (K().isActive(y.id) - K().isActive(x.id)) || ((I().bpLv(y.id) > 0) - (I().bpLv(x.id) > 0)) || 0; });
+    return '<p class="section-tip">每种品质都有 修炼速度 / 攻击 / 防御 / 气血 四类阵法,紫色与金色附带第二种效果。同时最多 ' + C.arrayActiveMax + ' 个阵法生效;每升 1 级效果 +20%,满 10 级为 ★,阵图等级越高效果越强。</p>' + head + chips + list.map(function (a) {
+      var lv = P.arrayLv(a.id), has = I().bpLv(a.id) > 0, max = lv >= C.maxLv, c = max || !has ? null : K().arrayCost(a.id), on = K().isActive(a.id);
       var now = lv ? K().arrayValue(a, lv) : null, next = max ? null : K().arrayValue(a, lv + 1);
-      return '<div class="card row-card arr-card' + (has ? '' : ' locked') + '" style="--qc:' + U.qColor(a.q) + '"><div class="rc-icon"><img src="' + U.img(a.icon) + '"' + (a.hue ? ' style="filter:hue-rotate(' + a.hue + 'deg)"' : '') + ' alt=""></div>' +
-        '<div class="rc-main"><b style="color:' + U.qColor(a.q) + '">' + a.name + ' <em class="lv">' + (lv ? U.lvText(lv) : '未布置') + '</em></b>' +
+      return '<div class="card row-card arr-card' + (has ? '' : ' locked') + (on ? ' active' : '') + '" style="--qc:' + U.qColor(a.q) + '"><div class="rc-icon"><img src="' + U.img(a.icon) + '"' + (a.hue ? ' style="filter:hue-rotate(' + a.hue + 'deg)"' : '') + ' alt=""></div>' +
+        '<div class="rc-main"><b style="color:' + U.qColor(a.q) + '">' + a.name + ' <em class="lv">' + (lv ? U.lvText(lv) : '未布置') + '</em>' + (on ? ' <span class="on-tag">生效中</span>' : '') + '</b>' +
         (has ? bpTag(a.id) : '<span class="danger small">需【' + D.items[a.bpId].name + '】</span>') +
-        '<div class="small">' + (lv ? '当前:<span class="ok">' + effText(now) + '</span>' : '<span class="muted">' + a.desc + '</span>') + '</div>' +
-        (next && has ? '<div class="muted small">' + (lv ? '下一级:' : '布置后:') + effText(next) + '</div>' : '') +
+        '<div class="small">' + (lv ? '当前:<span class="ok">' + effText(now) + '</span>' : '<span class="muted">' + a.desc + ' ' + effText(K().arrayValue(a, 1)) + '</span>') + '</div>' +
+        (next && has && lv ? '<div class="muted small">下一级:' + effText(next) + '</div>' : '') +
         (c ? '<div class="cost-line">' + K().costText(c) + '</div>' : '') + '</div>' +
-        '<button class="btn small primary up-btn" data-act="arr" data-id="' + a.id + '"' + (max || !has || !K().canPay(c) ? ' disabled' : '') + '>' + (max ? '★' : lv ? '升级' : '布置') + '</button></div>';
+        '<div class="btn-col">' + (lv ? '<button class="btn small ' + (on ? 'ghost' : '') + '" data-act="arrtog" data-id="' + a.id + '">' + (on ? '停用' : '启用') + '</button>' : '') +
+        '<button class="btn small primary up-btn" data-act="arr" data-id="' + a.id + '"' + (max || !has || !K().canPay(c) ? ' disabled' : '') + '>' + (max ? '★' : lv ? '升级' : '布置') + '</button></div></div>';
     }).join('');
   };
 
@@ -198,6 +210,8 @@ XX.pages.cave = (function () {
     var b = e.target.closest('[data-act]'); if (!b || b.disabled) return;
     var act = b.dataset.act;
     if (act === 'arr') res(K().upgradeArray(b.dataset.id));
+    else if (act === 'arrtog') res(K().toggleArray(b.dataset.id));
+    else if (act === 'arrtype') { arrType = b.dataset.k; PG.draw(); }
     else if (act === 'fac') {
       var key = b.dataset.k, c = K().facilityCost(key), f = D.facilities[key];
       XX.ui.confirm('升级' + f.name, '<p class="center">将' + f.name + '升至 <b>' + (K().lv(key) + 1) + '</b> 级<br>消耗 ' + K().costText(c) + '</p><p class="muted small">' + f.desc + '</p>', function () { res(K().upgradeFacility(key)); }, '升级');

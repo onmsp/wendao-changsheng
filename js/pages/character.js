@@ -117,16 +117,15 @@ XX.pages.character = (function () {
     U.$('#ch-buffs').innerHTML = P.timedList().map(function (b) { return '<span class="buff-chip">' + b.name + ' +' + U.pct(b.v, 0) + ' · ' + U.time(b.left) + '</span>'; }).join('');
     var tip, btn = U.$('#ch-break');
     if (PG._breaking) return;
+    var best = info.max ? null : P.breakInfo('best');
+    var chanceTxt = info.max ? '' : '<span class="muted">成功率 <b class="ok">' + U.pct(info.chance, 0) + '</b>(基础 ' + U.pct(info.base, 0) + ' · 气运 +' + U.pct(info.luckBonus, 1) + ')' +
+      (best.pillG ? ' · 服丹可达 <b class="ok">' + U.pct(best.chance, 0) + '</b>' : '') + ' · 失败损失 20% 修为</span>';
     if (info.max) { tip = '已臻至境'; btn.disabled = true; }
     else if (!info.ready) {
-      tip = '下一境界「' + info.next.name + '」,还需 ' + U.exp(need - st.exp) + ' 修为<br><span class="muted">成功率 ' + U.pct(info.chance, 0) + '(含气运 +' + U.pct(info.luckBonus, 0) + ')· 突破后修炼速度 +' + U.pct(info.rateGain, 0) + '</span>';
+      tip = '下一境界「' + info.next.name + '」,还需 ' + U.exp(need - st.exp) + ' 修为<br>' + chanceTxt;
       btn.disabled = true;
-    } else if (info.major) {
-      tip = '瓶颈!冲击<b>' + info.next.majorName + '</b>需【' + D.items[info.pill].name + '】' + (info.havePill ? '<span class="ok">✔</span>' : '<span class="danger">✘</span>') +
-        '<br><span class="muted">成功率 <b class="ok">' + U.pct(info.chance, 0) + '</b>(基础 ' + U.pct(info.base, 0) + ' · 气运 +' + U.pct(info.luckBonus, 0) + (info.talisman ? ' · 破境符 +' + U.pct(info.talisman, 0) : '') + ')· 修炼速度 +' + U.pct(info.rateGain, 0) + '</span>';
-      btn.disabled = false;
     } else {
-      tip = '修为已足,可冲击「' + info.next.name + '」<br><span class="muted">成功率 <b class="ok">' + U.pct(info.chance, 0) + '</b>(基础 ' + U.pct(info.base, 0) + ' · 气运 +' + U.pct(info.luckBonus, 0) + ')· 修炼速度 +' + U.pct(info.rateGain, 0) + '</span>';
+      tip = (info.major ? '瓶颈!可冲击<b>' + info.next.majorName + '</b>' : '修为已足,可冲击「' + info.next.name + '」') + ' · 修炼速度 +' + U.pct(info.rateGain, 0) + '<br>' + chanceTxt;
       btn.disabled = false;
     }
     U.$('#ch-tip').innerHTML = tip;
@@ -166,9 +165,40 @@ XX.pages.character = (function () {
     }, 1100);
   };
 
+  /* 突破:先选择是否服用本大境界的突破丹 */
   PG.doBreak = function () {
-    var info = XX.sys.player.breakInfo();
+    var P = XX.sys.player, info = P.breakInfo();
+    if (info.max || !info.ready) return;
+    var sel = info.pills.length ? info.pills[0].g : 0;
+    function body() {
+      var cur = P.breakInfo(sel), pid = info.pillId;
+      var opts = '<button class="seed' + (sel === 0 ? ' on' : '') + '" data-g="0"><div><b>不服用丹药</b><div class="muted small">成功率 ' + U.pct(P.breakInfo(0).chance, 0) + '</div></div></button>' +
+        info.pills.map(function (x) {
+          return '<button class="seed' + (sel === x.g ? ' on' : '') + '" data-g="' + x.g + '">' + U.itemIcon(pid, '', null, { g: x.g }) + '<div><b style="color:' + U.qColor(x.q) + '">' + D.items[pid].name + '</b> ×' + x.n +
+            '<div class="muted small">成功率 +' + U.pct(x.bonus, 0) + '</div></div></button>';
+        }).join('');
+      if (!info.pills.length) opts += '<p class="muted small center">背包中没有【' + D.items[pid].name + '】(' + info.cur.majorName + '期专用,白色 +10%,每高一品质 +5%)。可在洞府炼丹、历练、秘境或商城获得。</p>';
+      return '<div class="brk-box"><p class="center">冲击「<b>' + info.next.name + '</b>」</p>' +
+        '<table class="brk-tb"><tr><td>境界基础</td><td>' + U.pct(cur.base, 0) + '</td></tr><tr><td>气运 ' + cur.luck + '</td><td>+' + U.pct(cur.luckBonus, 1) + '</td></tr>' +
+        '<tr><td>突破丹</td><td>+' + U.pct(cur.pillBonus, 0) + '</td></tr><tr><td><b>最终成功率</b></td><td><b class="ok">' + U.pct(cur.chance, 0) + '</b></td></tr></table>' +
+        '<p class="muted small center">失败将损失 ' + U.exp(cur.loss) + ' 修为(所需修为的 20%),所选丹药无论成败都会消耗。</p>' +
+        '<div class="replace-list">' + opts + '</div></div>';
+    }
+    XX.ui.modal({
+      title: '突破', html: '<div id="brk-wrap">' + body() + '</div>',
+      buttons: [{ text: '再等等' }, { text: '冲击瓶颈', cls: 'primary', onClick: function () { PG.runBreak(sel); } }],
+      onOpen: function (w) {
+        U.$('#brk-wrap', w).onclick = function (e) {
+          var b = e.target.closest('[data-g]'); if (!b) return;
+          sel = +b.dataset.g; U.$('#brk-wrap', w).innerHTML = body();
+        };
+      }
+    });
+  };
+  PG.runBreak = function (g) {
+    var info = XX.sys.player.breakInfo(g);
     var show = U.$('#ch-show');
+    if (!show) return;
     PG._breaking = true;
     U.$('#ch-break').disabled = true;
     U.$('#ch-tip').innerHTML = '<span class="ok">运转周天,冲击关隘……</span>';
@@ -177,7 +207,7 @@ XX.pages.character = (function () {
       PG._breaking = false;
       if (!root) return;
       show.classList.remove('charging');
-      var r = XX.sys.player.breakthrough();
+      var r = XX.sys.player.breakthrough(g);
       XX.ui.toast(r.msg, r.ok ? 'ok' : 'warn');
       show.classList.add(r.ok ? 'breakfx' : 'failfx');
       setTimeout(function () { show.classList.remove('breakfx', 'failfx'); }, 1600);
@@ -191,7 +221,7 @@ XX.pages.character = (function () {
     XX.ui.modal({
       title: '法宝',
       html: XX.ui.equipDetail(e),
-      buttons: [{ text: '卸下', onClick: function () { XX.sys.inv.unequip(slot); PG.full(); } }, { text: '强化', onClick: function () { XX.pages.bag.enhance(e, function () { PG.full(); }); } }, { text: '关闭', cls: 'primary' }]
+      buttons: [{ text: '卸下', onClick: function () { XX.sys.inv.unequip(slot); PG.full(); } }, { text: XX.sys.inv.isSpecial(e) ? '特殊法宝' : '强化', onClick: function () { XX.pages.bag.enhance(e, function () { PG.full(); }); } }, { text: '关闭', cls: 'primary' }]
     });
   };
 

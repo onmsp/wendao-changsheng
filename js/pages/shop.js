@@ -11,7 +11,7 @@ XX.pages.shop = (function () {
       '<p class="muted small center">价格随品阶(白→金)与品类递增 · 仙玉可通过秘境通关、大境界突破获得</p>';
     U.$('#sh-grid').onclick = function (e) {
       var info = e.target.closest('[data-info]');
-      if (info) { XX.ui.modal({ title: '物品详情', html: XX.ui.itemInfo(info.dataset.info) }); return; }
+      if (info) { XX.ui.modal({ title: '物品详情', html: XX.ui.itemInfo(info.dataset.info, '', +info.dataset.g || undefined) }); return; }
       var b = e.target.closest('[data-buy]'); if (!b || b.disabled) return;
       var r = XX.sys.shop.buy(+b.dataset.buy);
       XX.ui.toast(r.msg, r.ok ? 'ok' : 'warn');
@@ -27,8 +27,8 @@ XX.pages.shop = (function () {
     U.$('#sh-grid').innerHTML = XX.sys.shop.offers().map(function (x) {
       var it = D.items[x.o.item], out = x.left <= 0;
       return '<div class="offer' + (out ? ' soldout' : '') + '" style="--qc:' + U.qColor(it.q) + '">' +
-        '<div class="offer-icon" data-info="' + x.o.item + '">' + U.itemIcon(x.o.item) + (x.o.n > 1 ? '<span class="cnt">×' + x.o.n + '</span>' : '') + '</div>' +
-        '<div class="offer-name">' + U.itemName(x.o.item) + '</div>' +
+        '<div class="offer-icon" data-info="' + x.o.item + '" data-g="' + (x.o.g || '') + '">' + U.itemIcon(x.o.item, '', null, { g: x.o.g }) + (x.o.n > 1 ? '<span class="cnt">×' + x.o.n + '</span>' : '') + '</div>' +
+        '<div class="offer-name">' + U.itemName(x.o.item, x.o.g) + '</div>' +
         '<div class="offer-cat">' + D.shopCatName[D.shopCategory(x.o.item)] + '</div>' +
         '<div class="muted small">限购 ' + Math.max(0, x.left) + '/' + x.o.stock + '</div>' +
         '<button class="btn small primary" data-buy="' + x.slot + '"' + (out || jade < x.price ? ' disabled' : '') + '>' +

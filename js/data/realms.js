@@ -1,48 +1,54 @@
 /*
  * 境界数据
- * majors:大境界;stages 小境界名称;pill 为突破到该大境界所需丹药(物品 id);baseChance 基础成功率
- * 所有小境界在加载时自动展开为 XX.data.realms 扁平数组,index 即玩家境界序号
+ * majors:大境界;stages 小境界名称;所有小境界展开为 XX.data.realms 扁平数组,index 即玩家境界序号
+ * 突破丹:每个大境界有专用突破丹(pill_brk{大境界序号}),可选服用以提高成功率
  */
 XX.data.realmMajors = [
   { name: '炼气', stages: ['一层', '二层', '三层', '四层', '五层', '六层', '七层', '八层', '九层'], lifespan: 100 },
-  { name: '筑基', stages: ['初期', '中期', '后期', '圆满'], pill: 'pill_zhuji', baseChance: 0.45, lifespan: 200 },
-  { name: '金丹', stages: ['初期', '中期', '后期', '圆满'], pill: 'pill_ningjin', baseChance: 0.40, lifespan: 500 },
-  { name: '元婴', stages: ['初期', '中期', '后期', '圆满'], pill: 'pill_huaying', baseChance: 0.35, lifespan: 1000 },
-  { name: '化神', stages: ['初期', '中期', '后期', '圆满'], pill: 'pill_ningshen', baseChance: 0.30, lifespan: 2000 },
-  { name: '炼虚', stages: ['初期', '中期', '后期', '圆满'], pill: 'pill_lianxu', baseChance: 0.28, lifespan: 5000 },
-  { name: '合体', stages: ['初期', '中期', '后期', '圆满'], pill: 'pill_heti', baseChance: 0.25, lifespan: 10000 },
-  { name: '大乘', stages: ['初期', '中期', '后期', '圆满'], pill: 'pill_dacheng', baseChance: 0.22, lifespan: 30000 },
-  { name: '渡劫', stages: ['初期', '中期', '后期', '圆满'], pill: 'pill_dujie', baseChance: 0.20, lifespan: 99999 }
+  { name: '筑基', stages: ['初期', '中期', '后期', '圆满'], lifespan: 200 },
+  { name: '金丹', stages: ['初期', '中期', '后期', '圆满'], lifespan: 500 },
+  { name: '元婴', stages: ['初期', '中期', '后期', '圆满'], lifespan: 1000 },
+  { name: '化神', stages: ['初期', '中期', '后期', '圆满'], lifespan: 2000 },
+  { name: '炼虚', stages: ['初期', '中期', '后期', '圆满'], lifespan: 5000 },
+  { name: '合体', stages: ['初期', '中期', '后期', '圆满'], lifespan: 10000 },
+  { name: '大乘', stages: ['初期', '中期', '后期', '圆满'], lifespan: 30000 },
+  { name: '渡劫', stages: ['初期', '中期', '后期', '圆满'], lifespan: 99999 }
 ];
 
 /* 数值曲线(可调) */
 XX.data.realmCurve = {
   /*
-   * 每层突破所需修为(按境界序号)。已按"重度玩家约 5.5 天、普通玩家约 7~8 天到元婴"调校:
-   * 炼气 ≈ 28.5 万,筑基 ≈ 106 万,金丹 ≈ 260 万;超出表格的境界按 expGrowAfter 递增
+   * 每层突破所需修为(按境界序号 0~40)。按模拟调校:普通玩家(日均有效 20 小时)约 60 天到渡劫,
+   * 重度玩家约 47 天;元婴约 5.5~8 天。突破失败会额外损耗修为,已计入。
    */
-  expTable: [300, 800, 2000, 5000, 12000, 25000, 45000, 75000, 120000,
-    180000, 230000, 290000, 360000,
-    500000, 600000, 700000, 800000,
-    1000000, 1250000, 1500000, 1800000],
-  expGrowAfter: 1.3,
+  expTable: [300, 800, 2000, 5000, 12000, 25000, 40000, 55000, 70000,
+    170000, 210000, 260000, 310000,
+    440000, 540000, 670000, 820000,
+    960000, 1200000, 1400000, 1600000,
+    1700000, 2000000, 2500000, 2900000,
+    3000000, 3400000, 3900000, 4500000,
+    4800000, 5300000, 5900000, 6600000,
+    7200000, 8600000, 10000000, 12000000,
+    13000000, 15000000, 17000000, 20000000],
   hp: [120, 1.18], mp: [60, 1.15],
   atk: [16, 1.17], def: [6, 1.17],
   spd: [10, 2], sense: [10, 3]          // 线性:base + index * k
 };
 
 (function buildRealms() {
-  var c = XX.data.realmCurve, list = [], idx = 0;
+  var c = XX.data.realmCurve, C = XX.config, list = [], idx = 0;
   XX.data.realmMajors.forEach(function (m, mi) {
     m.stages.forEach(function (s, si) {
+      var last = si === m.stages.length - 1;
       list.push({
         index: idx, major: mi, minor: si,
         name: m.name + s,
         majorName: m.name,
-        isMajorGate: si === 0 && mi > 0,      // 突破进入此境界需要大境界突破
-        pill: si === 0 ? m.pill : null,
-        baseChance: si === 0 && mi > 0 ? m.baseChance : Math.max(0.6, 0.92 - mi * 0.04), // 小境界基础成功率随大境界递减
-        expNeed: c.expTable[idx] || Math.round(c.expTable[c.expTable.length - 1] * Math.pow(c.expGrowAfter, idx - c.expTable.length + 1)),
+        isMajorGate: si === 0 && mi > 0,      // 突破进入此境界属于大境界突破
+        /* 从本层突破到下一层的基础成功率 */
+        breakChance: C.breakBase - mi * C.breakMajorStep - si * C.breakMinorStep - (last ? C.breakGatePenalty : 0),
+        pill: 'pill_brk' + mi,                // 本大境界可用的突破丹
+        expNeed: c.expTable[idx],
         lifespan: m.lifespan,
         stats: {
           hp: Math.round(c.hp[0] * Math.pow(c.hp[1], idx)),

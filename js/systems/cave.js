@@ -73,8 +73,23 @@ XX.sys.cave = (function () {
     if (!K.canPay(c)) return { ok: false, msg: K.lackText(c) };
     K.pay(c);
     cave().arrays[id] = lv + 1;
+    cave().activeArrays = cave().activeArrays || [];
+    var auto = !lv && cave().activeArrays.length < C.arrayActiveMax && cave().activeArrays.indexOf(id) < 0;
+    if (auto) cave().activeArrays.push(id);
     XX.bus.emit('stats');
-    return { ok: true, msg: lv ? a.name + ' 提升至 ' + U.lvText(lv + 1) : '布置' + a.name + '成功' };
+    return { ok: true, msg: lv ? a.name + ' 提升至 ' + U.lvText(lv + 1) : '布置' + a.name + '成功' + (auto ? ',已启用' : '(生效阵法已满 ' + C.arrayActiveMax + ' 个,可手动替换)') };
+  };
+  /* 启用/停用阵法:同时最多 config.arrayActiveMax 个生效 */
+  K.isActive = function (id) { return (cave().activeArrays || []).indexOf(id) >= 0; };
+  K.toggleArray = function (id) {
+    var cv = cave(), a = K.arrayDef(id);
+    cv.activeArrays = (cv.activeArrays || []).filter(function (x) { return P().arrayLv(x) > 0; });
+    var i = cv.activeArrays.indexOf(id);
+    if (i >= 0) { cv.activeArrays.splice(i, 1); XX.bus.emit('stats'); return { ok: true, msg: '已停用' + a.name }; }
+    if (!P().arrayLv(id)) return { ok: false, msg: '尚未布置' + a.name };
+    if (cv.activeArrays.length >= C.arrayActiveMax) return { ok: false, msg: '最多同时启用 ' + C.arrayActiveMax + ' 个阵法,请先停用其他阵法' };
+    cv.activeArrays.push(id); XX.bus.emit('stats');
+    return { ok: true, msg: '已启用' + a.name };
   };
 
   /* ---------- 炼丹 / 炼器(共用) ---------- */

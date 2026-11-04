@@ -3,7 +3,7 @@ window.XX = window.XX || { data: {}, sys: {}, pages: {}, screens: {} };
 
 XX.config = {
   gameName: '问道长生',
-  version: '0.1.4',
+  version: '0.1.5',
   saveKey: 'wendao_changsheng_save',
   tickMs: 3000,            // 修炼结算周期:每 3 秒
   bagCapacity: 50,         // 初始背包格子
@@ -13,12 +13,29 @@ XX.config = {
   offlineCapHours: 12,     // 离线收益上限(小时)
   autoSaveMs: 5000,
   start: {
-    stone: 0,              // 初始灵石
+    stone: 500,            // 初始灵石
     jade: 0,               // 初始仙玉
     root: 'r5',            // 初始灵根:五色灵根
     items: [['eq_changjian', 1, { q: 0 }]]   // 初始物品:一把白色法宝·长剑
   },
   treasureSlots: 4,        // 可同时佩戴的法宝数量(显示在人物四角)
+  specialTreasureMax: 2,   // 其中特殊法宝(炼器所得)最多佩戴 2 件
+  arrayActiveMax: 5,       // 同时生效的阵法数量
+
+  /*
+   * 突破:基础成功率 = 0.9 - 大境界序号×0.1 - 小境界序号×0.02;冲击下一大境界再 -5%
+   * 失败扣除本层所需修为的 20%
+   * 突破丹:当前大境界专用,白色 +10%,每高一品质再 +5%(绿15 蓝20 紫25 金30)
+   * 气运:100 气运在炼气期 = +10%(上限),之后每个大境界效果减半
+   */
+  breakBase: 0.9, breakMajorStep: 0.1, breakMinorStep: 0.02, breakGatePenalty: 0.05,
+  breakFailLoss: 0.2,
+  breakPillBonus: [0.10, 0.15, 0.20, 0.25, 0.30],
+  luckBreakCap: 0.10, luckFull: 100,
+  breakMin: 0.03, breakMax: 0.98,
+  /* 属性丹:每种每个大境界的累计服用上限(炼气 5、筑基 10,之后每个大境界 +15) */
+  attrPillCap: function (major) { return major <= 0 ? 5 : major === 1 ? 10 : 10 + 15 * (major - 1); },
+  shopMaxQ: 3,             // 仙玉商城只刷新紫色及以下
   battleSpeed: 1,          // 战斗演出默认倍速
   dungeonCooldownSec: 10,  // 历练副本每场战斗后的刷新等待(秒)
   secretMaxTimes: 10,      // 秘境次数上限

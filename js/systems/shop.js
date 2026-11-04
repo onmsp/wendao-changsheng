@@ -14,7 +14,7 @@ XX.sys.shop = (function () {
     if (sh.period === per && sh.offers) return;
     var rng = U.seeded(per * 7919 + st().created % 100000);
     var pool = D.shop.pool.map(function (o, i) { return { o: o, i: i }; })
-      .filter(function (x) { return !x.o.reqRealm || st().realm >= x.o.reqRealm; });
+      .filter(function (x) { return (!x.o.reqRealm || st().realm >= x.o.reqRealm) && (x.o.maxRealm == null || st().realm <= x.o.maxRealm); });
     var picked = [];
     while (picked.length < D.shop.slots && pool.length) {
       var k = U.weighted(pool.map(function (x) { return x.o.w; }), rng);
@@ -38,10 +38,10 @@ XX.sys.shop = (function () {
     if (left <= 0) return { ok: false, msg: '本期已售罄' };
     var price = D.shopPrice(o);
     if (st().jade < price) return { ok: false, msg: '仙玉不足' };
-    if (!XX.sys.inv.canAdd(o.item, o.n)) return { ok: false, msg: '储物袋空间不足' };
+    if (!XX.sys.inv.canAdd(o.item, o.n, o.g)) return { ok: false, msg: '储物袋空间不足' };
     st().jade -= price;
     st().shop.bought[slot] = (st().shop.bought[slot] || 0) + 1;
-    XX.sys.inv.add(o.item, o.n);
+    XX.sys.inv.add(o.item, o.n, false, o.g ? { g: o.g } : undefined);
     return { ok: true, msg: '购得 ' + D.items[o.item].name + ' ×' + o.n };
   };
 
