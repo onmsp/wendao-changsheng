@@ -390,3 +390,8 @@
 .brk-tb td { padding: 3px 6px; border-bottom: 1px dashed var(--line); }
 .brk-tb td:last-child { text-align: right; }
 .seed.on { border-color: var(--gold); box-shadow: 0 0 10px -3px var(--gold); background: rgba(232, 199, 122, .12); }
+
+/* ---------- 0.1.6:炼器详情入口 ---------- */
+.rc-icon { position: relative; cursor: pointer; }
+.rc-eye { position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%); font-size: 10px; line-height: 14px; padding: 0 5px; border-radius: 7px; background: rgba(232, 199, 122, .9); color: #1a1408; white-space: nowrap; }
+.recipe b.link { cursor: pointer; text-decoration: underline dotted rgba(232, 199, 122, .6); text-underline-offset: 3px; }

@@ -103,6 +103,12 @@ XX.sys.cave = (function () {
   K.known = function (kind, r) { return inv().bpLv(r.id) > 0; };
   K.needLv = function (kind, r) { return D.lvForTier(r.q); };
   K.lvOk = function (kind, r) { return K.lv(kind) >= K.needLv(kind, r); };
+  /* 特殊法宝炼制强度 = max(器图基准, 当前境界序号);灵石消耗随强度提升 */
+  K.forgePw = function (r) { return Math.max(r.pw || 0, st().realm); };
+  K.craftStone = function (kind, r) {
+    if (kind !== 'forge') return r.stone;
+    return Math.round(r.stone * Math.pow(1.12, K.forgePw(r) - (r.pw || 0)));
+  };
   K.batchTime = function (r, n) { return r.time * (1 + (n - 1) * D.batchTimeFactor); };
   K.maxBatch = function (kind, r) {
     if (kind !== 'alchemy') return 1;
@@ -115,12 +121,14 @@ XX.sys.cave = (function () {
     if (!K.known(kind, r)) return { ok: false, msg: kind === 'alchemy' ? '尚未获得丹方' : '尚未获得器图' };
     if (!K.lvOk(kind, r)) return { ok: false, msg: F.name + '需达到 ' + K.needLv(kind, r) + ' 级' };
     if (st().realm < r.reqRealm) return { ok: false, msg: '境界不足' };
-    if (st().stone < r.stone * n) return { ok: false, msg: '灵石不足' };
+    var cs = K.craftStone(kind, r);
+    if (st().stone < cs * n) return { ok: false, msg: '灵石不足' };
     if (!inv().hasAll(r.need, n)) return { ok: false, msg: '材料不足' };
     inv().consume(r.need, n);
-    st().stone -= r.stone * n;
+    st().stone -= cs * n;
     var now = Date.now();
     cave()[kind] = { rid: rid, n: n, start: now, end: now + K.batchTime(r, n) * 1000 };
+    if (kind === 'forge') cave()[kind].pw = K.forgePw(r);
     return { ok: true, msg: F.name + '已开启:' + r.name + (n > 1 ? ' ×' + n + ' 炉' : '') };
   };
   K.craftProgress = function (kind) {
@@ -143,7 +151,7 @@ XX.sys.cave = (function () {
         XX.store.addLog('炼器失败,' + r.name + '器胚碎裂。');
         return { ok: false, fail: true, msg: '器胚碎裂!' + r.name + '炼制失败' };
       }
-      var eq = inv().makeEquip(outId, outDef.q, r.pw, inv().bpMul(r.id));
+      var eq = inv().makeEquip(outId, outDef.q, p.job.pw != null ? p.job.pw : r.pw, inv().bpMul(r.id));
       inv().addInstance(eq);
       XX.store.addLog('神兵出炉:获得法宝【' + eq.name + '】。');
       return { ok: true, msg: '炼制成功!获得 ' + eq.name, eq: eq };

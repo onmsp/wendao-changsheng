@@ -95,7 +95,8 @@ XX.pages.cave = (function () {
     else head += '<div class="fz-main"><b>正在炼制:' + p.recipe.name + ((p.job.n || 1) > 1 ? ' ×' + p.job.n + ' 炉' : '') + '</b><div data-prog="' + kind + '"></div></div>' +
       '<button class="btn small primary" data-act="collect" data-k="' + kind + '" data-ready="' + kind + '">收取</button></div>';
     var list = K().recipes(kind).map(function (r) {
-      var known = K().known(kind, r), lvOk = K().lvOk(kind, r), lock = st().realm < r.reqRealm, enough = I().hasAll(r.need) && st().stone >= r.stone;
+      var cs = K().craftStone(kind, r);
+      var known = K().known(kind, r), lvOk = K().lvOk(kind, r), lock = st().realm < r.reqRealm, enough = I().hasAll(r.need) && st().stone >= cs;
       var mats = Object.keys(r.need).map(function (id) {
         var have = I().count(id), ok = have >= r.need[id];
         return '<span class="mat' + (ok ? '' : ' lack') + '" data-act="iteminfo" data-id="' + id + '">' + U.itemIcon(id, 'xs') + D.items[id].name + ' ' + have + '/' + r.need[id] + '</span>';
@@ -106,16 +107,29 @@ XX.pages.cave = (function () {
       if (!lvOk) reasons.push('<span class="danger">需' + F.name + ' ' + K().needLv(kind, r) + ' 级</span>');
       if (lock) reasons.push('<span class="danger">需 ' + D.realms[r.reqRealm].name + '</span>');
       var off = lock || !known || !lvOk;
-      return '<div class="card recipe' + (off ? ' locked' : '') + '"><div class="rc-icon" data-act="iteminfo" data-id="' + r.out[0] + '">' + U.itemIcon(r.out[0]) + '</div>' +
-        '<div class="rc-main"><b>' + outName + '</b>' + bpTag(r.id) +
-        '<div class="mats">' + mats + '<span class="mat' + (st().stone >= r.stone ? '' : ' lack') + '"><img class="ci" src="' + U.img('icon/lingshi') + '">' + U.num(r.stone) + '</span></div>' +
-        '<div class="muted small">耗时 ' + U.timeCN(r.time) + ' · 成功率 ' + U.pct(K().successRate(kind, r), 0) + (reasons.length ? ' · ' + reasons.join(' ') : '') + '</div></div>' +
+      var isEq = kind === 'forge';
+      return '<div class="card recipe' + (off ? ' locked' : '') + '"><div class="rc-icon" data-act="' + (isEq ? 'eqinfo' : 'iteminfo') + '" data-id="' + (isEq ? r.id : r.out[0]) + '">' + U.itemIcon(r.out[0]) + (isEq ? '<span class="rc-eye">详情</span>' : '') + '</div>' +
+        '<div class="rc-main"><b' + (isEq ? ' data-act="eqinfo" data-id="' + r.id + '" class="link"' : '') + '>' + outName + '</b>' + bpTag(r.id) +
+        (isEq ? '<div class="small muted">' + eqBrief(r) + '</div>' : '') +
+        '<div class="mats">' + mats + '<span class="mat' + (st().stone >= cs ? '' : ' lack') + '"><img class="ci" src="' + U.img('icon/lingshi') + '">' + U.num(cs) + '</span></div>' +
+        '<div class="muted small">耗时 ' + U.timeCN(r.time) + ' · 成功率 ' + U.pct(K().successRate(kind, r), 0) + (isEq ? ' · 强度 ' + K().forgePw(r) + ' 级' : '') + (reasons.length ? ' · ' + reasons.join(' ') : '') + '</div></div>' +
         '<button class="btn small primary" data-act="craft" data-k="' + kind + '" data-id="' + r.id + '"' + (off || !enough || p ? ' disabled' : '') + '>' + (kind === 'alchemy' ? '开炉' : '炼制') + '</button></div>';
     }).join('');
     return fac + head + list;
   }
+  /* 法宝简要:主属性 + 固定效果 */
+  function eqBrief(r) {
+    var it = D.items[r.out[0]], NAMES = { hp: '气血', mp: '灵力', atk: '攻击', def: '防御', spd: '身法', sense: '神识', crit: '暴击', critDmg: '暴伤', dodge: '闪避' };
+    return Object.keys(it.stats).map(function (k) { return NAMES[k]; }).join('/') + ' · ' +
+      (it.effects || []).slice(0, C.affixCount[it.q]).map(function (k) { return D.affixes[k].name; }).join('、');
+  }
+  PG.eqInfo = function (rid) {
+    var r = K().recipe('forge', rid), mul = I().bpMul(r.id) || 1, pw = K().forgePw(r);
+    XX.ui.modal({ title: '法宝详情', cls: 'item-modal', html: XX.ui.equipPreview(r.out[0], pw, mul,
+      '<p class="muted small">成品强度 = max(器图基准 ' + r.pw + ',当前境界 ' + st().realm + ');境界越高炼出的法宝越强,灵石消耗随之增加。' + (I().bpLv(r.id) ? '' : '<br><span class="danger">尚未掌握器图,以 1 级器图预览。</span>') + '</p>') });
+  };
   PG.draw_alchemy = function () { return craftPanel('alchemy'); };
-  PG.draw_forge = function () { return '<p class="section-tip">法宝品质由器图决定:白/绿/蓝 1 种效果,紫/金 2 种效果;炼成后可在背包中强化至 10 级(★)。</p>' + craftPanel('forge'); };
+  PG.draw_forge = function () { return '<p class="section-tip">炼器只能炼制特殊法宝:品质由器图决定(白/绿/蓝 1 种效果,紫/金 2 种效果),属性高于同级普通法宝,但不可强化,最多同时佩戴 2 件。点击法宝可查看详细属性。</p>' + craftPanel('forge'); };
 
   /* 批量开炉 */
   PG.batchCraft = function (rid) {
@@ -210,6 +224,7 @@ XX.pages.cave = (function () {
     var b = e.target.closest('[data-act]'); if (!b || b.disabled) return;
     var act = b.dataset.act;
     if (act === 'arr') res(K().upgradeArray(b.dataset.id));
+    else if (act === 'eqinfo') PG.eqInfo(b.dataset.id);
     else if (act === 'arrtog') res(K().toggleArray(b.dataset.id));
     else if (act === 'arrtype') { arrType = b.dataset.k; PG.draw(); }
     else if (act === 'fac') {

@@ -99,13 +99,15 @@ XX.sys.inv = (function () {
   I.makeEquip = function (id, q, pw, mul) {
     var it = D.items[id];
     q = U.clamp(q == null ? (it.q || 0) : q, 0, 4); pw = pw || 0; mul = mul || 1;
-    var m = D.equipQualityMul[q] * Math.pow(D.equipLevelGrow, pw) * mul, bs = {};
+    var sp = it.forged ? C.specialStatMul : 1, am = it.forged ? C.specialAffixMul : 1;
+    var m = D.equipQualityMul[q] * Math.pow(D.equipLevelGrow, pw) * mul * sp, bs = {};
     Object.keys(it.stats).forEach(function (k) {
       var base = it.stats[k];
+      if (I.linearStat[k]) { bs[k] = Math.round(I.linearVal(base, q, pw, mul * sp) * U.rand(0.9, 1.1)); return; }
       bs[k] = base < 1 ? Math.round(base * (1 + q * 0.35) * mul * U.rand(0.9, 1.1) * 1000) / 1000 : Math.round(base * m * U.rand(0.9, 1.1));
     });
     var affixes = [];
-    if (it.effects) affixes = it.effects.slice(0, C.affixCount[q]).map(function (k) { return I.rollAffix(k, q, mul); });
+    if (it.effects) affixes = it.effects.slice(0, C.affixCount[q]).map(function (k) { return I.rollAffix(k, q, mul * am); });
     else {
       var pool = Object.keys(D.affixes);
       while (affixes.length < C.affixCount[q]) {
@@ -117,6 +119,26 @@ XX.sys.inv = (function () {
     if (!it.forged) { var prefix = ''; D.equipTierNames.forEach(function (t) { if (pw >= t[0]) prefix = t[1]; }); name = prefix + it.name; }
     return { id: id, uid: U.uid(), q: q, pw: pw, lv: 1, name: name, bs: bs, affixes: affixes, bpm: mul };
   };
+  /* 身法、神识与境界一样线性成长(避免高强度法宝的身法/神识失控) */
+  I.linearStat = { spd: true, sense: true };
+  I.linearVal = function (base, q, pw, mul) { return base * D.equipQualityMul[q] * (1 + 0.12 * pw) * mul; };
+  /* 法宝预览:返回属性与词条的取值范围(炼器界面查看详情用) */
+  I.previewEquip = function (id, q, pw, mul) {
+    var it = D.items[id];
+    q = q == null ? (it.q || 0) : q; mul = mul || 1;
+    var sp = it.forged ? C.specialStatMul : 1, am = it.forged ? C.specialAffixMul : 1;
+    var m = D.equipQualityMul[q] * Math.pow(D.equipLevelGrow, pw) * mul * sp, stats = {};
+    Object.keys(it.stats).forEach(function (k) {
+      var b = it.stats[k];
+      if (I.linearStat[k]) { var lv = I.linearVal(b, q, pw, mul * sp); stats[k] = [Math.round(lv * 0.9), Math.round(lv * 1.1)]; return; }
+      stats[k] = b < 1 ? [b * (1 + q * 0.35) * mul * 0.9, b * (1 + q * 0.35) * mul * 1.1] : [Math.round(b * m * 0.9), Math.round(b * m * 1.1)];
+    });
+    var affixes = (it.effects || []).slice(0, C.affixCount[q]).map(function (k) {
+      var a = D.affixes[k], f = D.affixQMul[q] * mul * am;
+      return { id: k, min: a.pct ? a.range[0] * f : Math.max(1, Math.round(a.range[0] * f)), max: a.pct ? a.range[1] * f : Math.max(1, Math.round(a.range[1] * f)) };
+    });
+    return { stats: stats, affixes: affixes, randomAffix: !it.effects, affixCount: C.affixCount[q] };
+  };
   /* 法宝当前属性 = 基础属性 × 强化等级倍率 */
   I.eqStats = function (e) {
     var m = D.lvMul(e.lv || 1), o = {}, bs = e.bs || e.stats || {};
@@ -126,7 +148,7 @@ XX.sys.inv = (function () {
   /* 特殊法宝 = 图纸炼制的法宝:不可强化,最多同时装备 2 件 */
   I.isSpecial = function (e) { return !!(e && D.items[e.id] && D.items[e.id].forged); };
   I.specialEquipped = function () { return st().equip.filter(function (e) { return I.isSpecial(e); }).length; };
-  /* 普通法宝强化:灵石 + 强化石(副本固定掉落) */
+  /* 普通法宝强化:灵石 + 强化石(副本基础掉落 30%) */
   I.enhanceCost = function (e) {
     var q = (e.q || 0) + 1, lv = e.lv || 1;
     return { stone: Math.round(100 * q * lv * (1 + (e.pw || 0) * 0.15)), qh: q * lv };
@@ -136,7 +158,7 @@ XX.sys.inv = (function () {
     if ((e.lv || 1) >= C.maxLv) return { ok: false, msg: '已达满级(★)' };
     var c = I.enhanceCost(e), s = st();
     if (s.stone < c.stone) return { ok: false, msg: '灵石不足(需 ' + U.num(c.stone) + ')' };
-    if (I.count('stone_qh') < c.qh) return { ok: false, msg: '强化石不足(' + I.count('stone_qh') + '/' + c.qh + ',副本固定掉落)' };
+    if (I.count('stone_qh') < c.qh) return { ok: false, msg: '强化石不足(' + I.count('stone_qh') + '/' + c.qh + ',副本基础掉落 30%)' };
     s.stone -= c.stone; I.remove('stone_qh', c.qh);
     e.lv = (e.lv || 1) + 1;
     XX.bus.emit('stats');

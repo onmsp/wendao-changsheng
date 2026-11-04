@@ -138,12 +138,28 @@ XX.ui = (function () {
     var D = XX.data, it = D.items[e.id], q = XX.config.qualities[e.q], st = XX.sys.inv.eqStats(e);
     var NAMES = { hp: '气血', mp: '灵力', atk: '攻击', def: '防御', spd: '身法', sense: '神识', crit: '暴击率', critDmg: '暴击伤害', dodge: '闪避率' };
     return '<div class="item-detail">' + U.itemIcon(e.id, 'lg', e.q, { lv: e.lv }) + '<div><div class="item-detail-name" style="color:' + q.color + '">' + U.eqName(e) + '</div>' +
-      '<div class="muted">' + (it.forged ? '炼器法宝' : '法宝') + ' · 强化 ' + U.lvText(e.lv) + (e.bpm > 1 ? ' · 器图加成 ' + U.pct(e.bpm, 0) : '') + '</div></div></div>' +
+      '<div class="muted">' + (it.forged ? '<span class="sp-tag">特殊</span> 炼器法宝 · 不可强化' : '普通法宝' + (it.cat ? '·' + it.cat : '') + ' · 强化 ' + U.lvText(e.lv)) + (e.bpm > 1 ? ' · 器图加成 ' + U.pct(e.bpm, 0) : '') + ' · 强度 ' + (e.pw || 0) + ' 级</div></div></div>' +
       '<p class="item-desc">' + it.desc + '</p><div class="stat-list">' +
       Object.keys(st).map(function (k) { var v = st[k]; return '<div><span>' + NAMES[k] + '</span><b>+' + (v < 1 ? U.pct(v) : U.num(v)) + '</b></div>'; }).join('') + '</div>' +
       (e.affixes && e.affixes.length ? '<div class="affix-list">' + e.affixes.map(function (a) {
         return '<div class="affix q' + e.q + '">◆ ' + XX.sys.inv.affixText(a) + '</div>';
       }).join('') + '</div>' : '');
+  };
+
+  /* 炼器预览:成品属性范围、固定效果(炼器界面点击法宝查看) */
+  ui.equipPreview = function (id, pw, mul, extraHtml) {
+    var D = XX.data, it = D.items[id], q = it.q || 0, pv = XX.sys.inv.previewEquip(id, q, pw, mul);
+    var NAMES = { hp: '气血', mp: '灵力', atk: '攻击', def: '防御', spd: '身法', sense: '神识', crit: '暴击率', critDmg: '暴击伤害', dodge: '闪避率' };
+    function fv(v, pct) { return pct ? U.pct(v) : U.num(v); }
+    return '<div class="item-detail">' + U.itemIcon(id, 'lg', q) + '<div><div class="item-detail-name" style="color:' + U.qColor(q) + '">' + it.name + '</div>' +
+      '<div class="muted">' + (it.forged ? '<span class="sp-tag">特殊</span> 炼器法宝 · 不可强化 · 最多佩戴 ' + XX.config.specialTreasureMax + ' 件' : '普通法宝') + '</div></div></div>' +
+      '<p class="item-desc">' + it.desc + '</p>' +
+      '<div class="muted small">成品强度 ' + pw + ' 级 · 器图倍率 ' + U.pct(mul, 0) + '(属性在范围内随机)</div><div class="stat-list">' +
+      Object.keys(pv.stats).map(function (k) { var r = pv.stats[k], pct = it.stats[k] < 1; return '<div><span>' + NAMES[k] + '</span><b>+' + fv(r[0], pct) + ' ~ ' + fv(r[1], pct) + '</b></div>'; }).join('') + '</div>' +
+      (pv.affixes.length ? '<div class="affix-list">' + pv.affixes.map(function (a) {
+        var d = D.affixes[a.id];
+        return '<div class="affix q' + q + '">◆ ' + d.name + ':' + d.desc.replace('{v}', fv(a.min, d.pct) + '~' + fv(a.max, d.pct)) + '</div>';
+      }).join('') + '</div>' : pv.randomAffix ? '<div class="muted small">随机 ' + pv.affixCount + ' 条特殊效果</div>' : '') + (extraHtml || '');
   };
 
   return ui;

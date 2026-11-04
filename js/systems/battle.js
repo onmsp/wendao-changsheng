@@ -40,9 +40,13 @@ XX.sys.battle = (function () {
     if (Math.random() < dodge) return { dmg: 0, dodge: true };
     var crit = Math.random() < U.clamp(a.crit - d.sense * 0.0005, 0.01, 0.75);
     var atk = effAtk(a), def = effDef(d) * (1 - (a.pierce || 0));
-    var dmg = atk * atk / (atk + def) * U.rand(0.9, 1.1) * mult;
+    var BC = C.battle;
+    /* 减伤 = 防御 / (防御 + 攻击);保底造成攻击力 15% 的伤害,避免「打不动」 */
+    var dmg = Math.max(atk * atk / (atk + def), atk * BC.minDmgAtk) * U.rand(0.9, 1.1) * mult;
     if (crit) dmg *= a.critDmg;
-    return { dmg: Math.max(1, Math.round(dmg)), crit: crit };
+    /* 单次伤害上限(占目标最大气血):普攻 35%、暴击 50%、技能 50%,避免「秒杀」 */
+    var cap = d.maxHp * (mult > 1 ? BC.skillCap : crit ? BC.critCap : BC.hitCap);
+    return { dmg: Math.max(1, Math.round(Math.min(dmg, cap))), crit: crit };
   }
 
   /* 玩家技能:按栏位顺序逐个判定触发概率;灵力不足或条件不满足则跳过 */
@@ -76,9 +80,15 @@ XX.sys.battle = (function () {
           for (var i = 0; i < n; i++) { var h = hit(a, d, def.mult * (1 + def.overDmg)); ev.hits.push(h); total += h.dmg; }
         }
         var landed = ev.hits.some(function (h) { return !h.dodge; });
-        if (def.heal) ev.heal += Math.round(a.maxHp * def.heal);
-        if (def.drain) ev.heal += Math.round(total * def.drain);
-        if (def.shield) { ev.shield = Math.round(a.maxHp * def.shield); a.shield = (a.shield || 0) + ev.shield; }
+        /* 治疗类效果在同一场战斗中逐次衰减(×0.7),护盾总量不超过最大气血 50% */
+        var decay = Math.pow(C.battle.healDecay, a.healUsed || 0);
+        if (def.heal) ev.heal += Math.round(a.maxHp * def.heal * decay);
+        if (def.drain) ev.heal += Math.round(total * def.drain * decay);
+        if (def.shield) {
+          ev.shield = Math.max(0, Math.min(Math.round(a.maxHp * def.shield * decay), Math.round(a.maxHp * C.battle.shieldCap) - (a.shield || 0)));
+          a.shield = (a.shield || 0) + ev.shield;
+        }
+        if (def.heal || def.drain || def.shield) a.healUsed = (a.healUsed || 0) + 1;
         if (def.atkUp) { a.atkUp = { v: def.atkUp.pct, t: def.atkUp.turns + 1 }; ev.status.push('攻击+' + U.pct(def.atkUp.pct, 0)); }
         if (landed && def.burn) { d.burn = { dmg: Math.max(1, Math.round(effAtk(a) * def.burn.pct)), t: def.burn.turns }; ev.status.push('灼烧'); }
         if (landed && def.armor) { d.armorDown = { v: def.armor.pct, t: def.armor.turns }; ev.status.push('破甲'); }
@@ -87,7 +97,7 @@ XX.sys.battle = (function () {
         var h1 = hit(a, d, 1); ev.hits.push(h1); total += h1.dmg;
         if (a.double && Math.random() < a.double) { var h2 = hit(a, d, 1); h2.extra = true; ev.hits.push(h2); total += h2.dmg; ev.double = true; }
       }
-      if (a.lifesteal) ev.heal += Math.round(total * a.lifesteal);
+      if (a.lifesteal) ev.heal += Math.min(Math.round(total * a.lifesteal), Math.round(a.maxHp * C.battle.lifestealCap));
       a.mp = Math.min(a.maxMp, a.mp + Math.round(a.maxMp * a.mpRegen));
       d.hp = Math.max(0, d.hp - total);
     } else {
@@ -102,7 +112,7 @@ XX.sys.battle = (function () {
       ev.beast = Math.random() < 0.15;
       var hm = hit(a, d, ev.beast ? 1.4 : 1); ev.hits.push(hm); total = hm.dmg;
       if (d.shield && total > 0) { ev.absorb = Math.min(d.shield, total); d.shield -= ev.absorb; total -= ev.absorb; }
-      if (d.thorns && hm.dmg > 0) ev.reflect = Math.max(1, Math.round(hm.dmg * d.thorns));
+      if (d.thorns && hm.dmg > 0) ev.reflect = Math.max(1, Math.min(Math.round(hm.dmg * d.thorns), Math.round(a.maxHp * C.battle.thornsCap)));
       d.hp = Math.max(0, d.hp - total);
     }
     if (ev.heal) a.hp = Math.min(a.maxHp, a.hp + ev.heal);
@@ -112,7 +122,8 @@ XX.sys.battle = (function () {
 
   B.simulate = function (p, m) {
     var events = [], order = p.spd > m.spd || (p.spd === m.spd && Math.random() < 0.5) ? [p, m] : [m, p];
-    for (var round = 1; round <= 30 && p.hp > 0 && m.hp > 0; round++) {
+    var maxR = C.battle.maxRounds;
+    for (var round = 1; round <= maxR && p.hp > 0 && m.hp > 0; round++) {
       for (var k = 0; k < 2; k++) {
         var a = order[k], d = order[1 - k];
         if (a.hp <= 0 || d.hp <= 0) continue;
@@ -121,7 +132,9 @@ XX.sys.battle = (function () {
         events.push(ev);
       }
     }
-    return { win: m.hp <= 0 && p.hp > 0, events: events };
+    /* 超过回合上限仍未分胜负判定为失败 */
+    var win = m.hp <= 0 && p.hp > 0;
+    return { win: win, timeout: !win && p.hp > 0 && m.hp > 0, events: events };
   };
 
   /* 实际掉率 = 基础概率 × 品质系数(品质越高按比例降低);副本不出金色,秘境只出紫/金且不出特殊道具 */
@@ -136,9 +149,22 @@ XX.sys.battle = (function () {
     if (!B.dropAllowed(d, isSecret)) return 0;
     return d[1] * C.tierDropMul[D.qOf(d[0], d[4])];
   };
+  /* 气运掉率加成:每点 +0.5%,100 气运 ≈ +50% */
+  B.luckMul = function (luck) {
+    if (luck == null) luck = XX.sys.player.stats().luck;
+    return 1 + C.luckDropPer * U.clamp(luck, 0, C.luckDropMaxLuck);
+  };
+  /* 副本基础掉落:玄铁 30%、强化石 30% */
+  B.baseDrops = function (area) {
+    var p = area.power;
+    return C.dungeonBaseDrops.map(function (b) {
+      return b[0] === 'stone_qh' ? [b[0], b[1], area.qh[0], area.qh[1]] : [b[0], b[1], 1 + Math.floor(p / 8), 2 + Math.floor(p / 6)];
+    });
+  };
   B.rollDrops = function (drops, luck, isSecret) {
     var res = [];
-    drops.forEach(function (d) { if (Math.random() < B.dropChance(d, isSecret) * (1 + luck / 100)) res.push([d[0], U.randInt(d[2], d[3]), d[4] ? { g: d[4] } : undefined]); });
+    var lm = B.luckMul(luck);
+    drops.forEach(function (d) { if (Math.random() < B.dropChance(d, isSecret) * lm) res.push([d[0], U.randInt(d[2], d[3]), d[4] ? { g: d[4] } : undefined]); });
     return res;
   };
 
@@ -165,8 +191,7 @@ XX.sys.battle = (function () {
       var stone = U.randInt(area.stone[0], area.stone[1]);
       st().stone += stone;
       var exp = XX.sys.player.addExp(U.randInt(area.exp[0], area.exp[1]));
-      /* 副本固定掉落强化石 */
-      var drops = [['stone_qh', U.randInt(area.qh[0], area.qh[1])]].concat(B.rollDrops(area.drops, luck));
+      var drops = B.rollDrops(B.baseDrops(area).concat(area.drops), luck);
       r.reward = { stone: stone, exp: exp, items: XX.sys.inv.grant(drops), treasure: null };
       var eq = B.rollTreasure(C.treasureDrop.dungeon, area.power);
       if (eq && XX.sys.inv.addInstance(eq)) r.reward.treasure = eq;
@@ -202,11 +227,11 @@ XX.sys.battle = (function () {
     var p = B.playerFighter(), fights = [], cleared = 0;
     for (var i = 0; i < sec.floors.length; i++) {
       var isBoss = i === sec.floors.length - 1;
-      var m = B.monsterFighter(sec.floors[i], sec.power + i * 0.5, isBoss ? sec.bossMul : 1);
+      var m = B.monsterFighter(sec.floors[i], sec.power + (D.monsterCurve.secretPlus || 0) + i * 0.5, isBoss ? sec.bossMul : 1);
       var startHp = p.hp, startMp = p.mp;
       p.atkUp = null;
       var r = B.simulate(p, m);
-      fights.push({ floor: i + 1, boss: isBoss, monster: B.monsterInfo(m), pStart: startHp, pMp: startMp, pMax: p.maxHp, pMaxMp: p.maxMp, events: r.events, win: r.win });
+      fights.push({ floor: i + 1, boss: isBoss, monster: B.monsterInfo(m), pStart: startHp, pMp: startMp, pMax: p.maxHp, pMaxMp: p.maxMp, events: r.events, win: r.win, timeout: r.timeout });
       if (!r.win) break;
       cleared++;
       p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.3));

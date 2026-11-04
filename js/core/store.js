@@ -199,6 +199,21 @@ XX.store = (function () {
         .sort(function (a, b) { return cv2.arrays[b] - cv2.arrays[a]; }).slice(0, C.arrayActiveMax);
     }
     cv2.activeArrays = cv2.activeArrays.filter(function (k) { return cv2.arrays[k] > 0; }).slice(0, C.arrayActiveMax);
+    /* 0.1.6:特殊法宝属性重新标定(旧版后期特殊法宝数值过高),按原品质/强度/器图倍率重算,保留效果 */
+    if (st.v && st.v < '0.1.6') {
+      var regen = function (e) {
+        if (!e || !D.items[e.id] || !D.items[e.id].forged) return e;
+        var ne = XX.sys.inv.makeEquip(e.id, e.q, e.pw || 0, e.bpm || 1);
+        e.bs = ne.bs; e.lv = 1; return e;
+      };
+      /* 普通法宝:身法/神识改为线性成长 */
+      var relin = function (e) {
+        if (!e || !D.items[e.id] || D.items[e.id].type !== 'equip' || D.items[e.id].forged || !e.bs) return e;
+        ['spd', 'sense'].forEach(function (k) { if (e.bs[k] != null && D.items[e.id].stats[k] != null) e.bs[k] = Math.round(XX.sys.inv.linearVal(D.items[e.id].stats[k], e.q || 0, e.pw || 0, e.bpm || 1)); });
+        return e;
+      };
+      st.equip = st.equip.map(regen).map(relin); st.bag.slots = st.bag.slots.map(regen).map(relin);
+    }
     var spc = 0;
     st.equip = st.equip.map(function (e) {
       if (e && D.items[e.id] && D.items[e.id].forged) { spc++; if (spc > C.specialTreasureMax) { st.bag.slots.push(e); return null; } }

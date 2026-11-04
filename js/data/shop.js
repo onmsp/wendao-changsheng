@@ -89,13 +89,11 @@ XX.data.shop = {
     { item: 'ap_zaohua', n: 1, stock: 1, w: 0.4, reqRealm: 13 }
   ]
 };
-/* 突破丹:各大境界的白/绿品质(只在对应大境界上架) */
+/* 突破丹只能炼制:商城只上架对应大境界的丹方 */
 (function () {
   var starts = [0, 9, 13, 17, 21, 25, 29, 33, 37];
   starts.forEach(function (r, mi) {
     var end = mi < 8 ? starts[mi + 1] - 1 : 40;
-    XX.data.shop.pool.push({ item: 'pill_brk' + mi, g: 1, n: 1, stock: 2, w: 3, reqRealm: r, maxRealm: end });
-    XX.data.shop.pool.push({ item: 'pill_brk' + mi, g: 2, n: 1, stock: 1, w: 1.5, reqRealm: r, maxRealm: end });
     if (mi >= 1) XX.data.shop.pool.push({ item: 'rp_brk' + mi, n: 1, stock: 1, w: 0.8, reqRealm: r, maxRealm: end });
   });
   /* 商城只上架紫色及以下、且未标记 noShop 的物品 */

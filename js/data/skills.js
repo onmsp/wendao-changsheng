@@ -88,12 +88,16 @@ XX.data.shentongAt = function (id, lv) {
   var C = XX.config, s = XX.data.shentong[id], m = XX.data.lvMul(lv), o = {};
   lv = lv || 1;
   Object.keys(s).forEach(function (k) { o[k] = s[k]; });
-  ['mult', 'heal', 'shield'].forEach(function (k) { if (o[k]) o[k] = Math.round(o[k] * m * 1000) / 1000; });
-  if (o.drain) o.drain = Math.min(1, Math.round(o.drain * m * 1000) / 1000);
+  /* 伤害倍率按 +20%/级成长;治疗、护盾、吸血等续航效果只按 +5%/级成长并设上限,避免战斗中「打不死」 */
+  var ms = 1 + 0.05 * (lv - 1);
+  if (o.mult) o.mult = Math.round(o.mult * m * 1000) / 1000;
+  if (o.heal) o.heal = Math.min(0.4, Math.round(o.heal * ms * 1000) / 1000);
+  if (o.shield) o.shield = Math.min(0.4, Math.round(o.shield * ms * 1000) / 1000);
+  if (o.drain) o.drain = Math.min(0.5, Math.round(o.drain * ms * 1000) / 1000);
   if (o.burn) o.burn = { pct: Math.round(o.burn.pct * m * 1000) / 1000, turns: o.burn.turns };
   if (o.armor) o.armor = { pct: Math.min(0.6, Math.round(o.armor.pct * m * 1000) / 1000), turns: o.armor.turns };
   if (o.atkUp) o.atkUp = { pct: Math.round(o.atkUp.pct * m * 1000) / 1000, turns: o.atkUp.turns };
-  if (o.stun) o.stun = Math.min(0.8, Math.round(o.stun * m * 1000) / 1000);
+  if (o.stun) o.stun = Math.min(0.6, Math.round(o.stun * ms * 1000) / 1000);
   var ch = C.skillChance + C.skillChancePerLv * (lv - 1);
   o.chance = Math.min(1, ch);
   o.overDmg = Math.max(0, ch - 1);                 // 超出 100% 转为技能增伤

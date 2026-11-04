@@ -70,15 +70,39 @@ XX.data.items = {
     desc: '特殊道具,只能炼制。每次服用灵根转化度 +5%,满 100% 灵根提升一品。丹方等级决定可达到的最高灵根:1 级四色、2 级三色、3 级两色、4 级单色、5 级天灵根。', use: { kind: 'rootProg' } },
 
   /* ---------- 普通法宝(掉落时按地图强度 pw 生成数值) ---------- */
-  eq_changjian: { name: '长剑', type: 'equip', icon: 'item/sword', q: 0, price: 20, desc: '寻常修士的入门飞剑。', stats: { atk: 12, crit: 0.01 } },
-  eq_daopao: { name: '道袍', type: 'equip', icon: 'item/robe', q: 0, price: 20, desc: '绣有云纹的法衣,可御刀兵。', stats: { hp: 90, def: 8 } },
-  eq_yupei: { name: '玉佩', type: 'equip', icon: 'item/pendant', q: 0, price: 20, desc: '温养神识的玉佩。', stats: { mp: 40, sense: 6, dodge: 0.01 } },
-  eq_lingzhuo: { name: '灵镯', type: 'equip', icon: 'item/bracelet', q: 0, price: 20, desc: '护身灵镯,可挡一击。', stats: { hp: 60, def: 6, mp: 20 } },
-  eq_tongling: { name: '摄魂铃', type: 'equip', icon: 'item/bell', q: 0, price: 20, desc: '铃声可乱妖兽心神。', stats: { atk: 6, sense: 10, crit: 0.01 } }
 };
 
-/* 可掉落的普通法宝 */
-XX.data.treasureBases = ['eq_changjian', 'eq_daopao', 'eq_yupei', 'eq_lingzhuo', 'eq_tongling'];
+/*
+ * 普通法宝库:历练/秘境掉落,可用强化石强化;cat 为类别(攻/防/灵/辅),stats 为白色 0 级基准,
+ * 实际属性 = 基准 × 品质倍率 × 1.16^强度(产出地图),词条从 affixes 中随机
+ */
+XX.data.normalTreasures = [
+  ['eq_changjian', '长剑', 'item/sword', 0, '攻', '寻常修士的入门飞剑。', { atk: 12, crit: 0.01 }],
+  ['eq_kuandao', '阔刃刀', 'item/saber', 0, '攻', '刀背厚重,劈砍之势刚猛无俦。', { atk: 14, critDmg: 0.05 }],
+  ['eq_changqiang', '长枪', 'item/spear', 0, '攻', '一寸长一寸强,枪出如龙。', { atk: 11, spd: 4 }],
+  ['eq_fusuo', '飞梭', 'item/shuttle', 0, '攻', '穿梭如电的小巧法器。', { atk: 7, spd: 8 }],
+  ['eq_zheshan', '折扇', 'item/fan', 0, '攻', '扇骨暗藏锋刃,开合之间杀机隐现。', { atk: 9, sense: 6, dodge: 0.01 }],
+  ['eq_daopao', '道袍', 'item/robe', 0, '防', '绣有云纹的法衣,可御刀兵。', { hp: 90, def: 8 }],
+  ['eq_guijia', '龟甲盾', 'item/shell', 0, '防', '千年灵龟背甲所制,坚不可摧。', { def: 12, hp: 60 }],
+  ['eq_yunlv', '云履', 'item/boots', 0, '防', '踏云而行,身法轻灵。', { def: 5, spd: 6, dodge: 0.012 }],
+  ['eq_youzhisan', '油纸伞', 'item/umbrella', 0, '防', '伞面绘有避邪符纹,可挡风雨刀兵。', { def: 9, dodge: 0.015 }],
+  ['eq_xiaoding', '小鼎', 'item/ding', 0, '防', '巴掌大的青铜小鼎,镇压周身气血。', { hp: 110, def: 4 }],
+  ['eq_yupei', '玉佩', 'item/pendant', 0, '灵', '温养神识的玉佩。', { mp: 40, sense: 6, dodge: 0.01 }],
+  ['eq_lingzhuo', '灵镯', 'item/bracelet', 0, '灵', '护身灵镯,可挡一击。', { hp: 60, def: 6, mp: 20 }],
+  ['eq_lingjie', '灵戒', 'item/ring', 0, '灵', '戒面镶嵌灵石,可储灵力。', { mp: 45, atk: 5 }],
+  ['eq_lingzhu', '灵珠', 'item/pearl', 0, '灵', '蕴含水灵之气的宝珠。', { mp: 50, hp: 40 }],
+  ['eq_yudi', '玉笛', 'item/flute', 0, '灵', '笛声清越,可乱敌心神。', { mp: 30, atk: 7, spd: 3 }],
+  ['eq_yaoqin', '瑶琴', 'item/guqin', 0, '辅', '琴音入魂,攻守随心。', { atk: 7, mp: 30, sense: 6 }],
+  ['eq_tongling', '铜铃', 'item/goldbell', 0, '辅', '铃声可乱妖兽心神。', { atk: 6, sense: 10, crit: 0.01 }],
+  ['eq_fuchen', '拂尘', 'item/whisk', 0, '辅', '道家拂尘,一拂可散邪祟。', { atk: 7, def: 5, sense: 6 }],
+  ['eq_liandeng', '莲灯', 'item/lantern', 0, '辅', '灯火长明,滋养气血。', { hp: 70, mp: 25 }],
+  ['eq_shufaguan', '束发冠', 'item/crown', 0, '辅', '凝神静气的宝冠。', { hp: 50, sense: 10, mp: 20 }]
+];
+XX.data.treasureBases = [];
+XX.data.normalTreasures.forEach(function (t) {
+  XX.data.items[t[0]] = { name: t[1], type: 'equip', icon: t[2], q: t[3], cat: t[4], price: 20, desc: t[5], stats: t[6] };
+  XX.data.treasureBases.push(t[0]);
+});
 
 /*
  * 法宝效果(词条):白/绿/蓝 1 条,紫/金 2 条(config.affixCount)
@@ -97,30 +121,51 @@ XX.data.affixes = {
   critDmg: { name: '诛心', kind: 'stat', range: [0.15, 0.35], pct: true, desc: '暴击伤害 +{v}' },
   crit: { name: '会心', kind: 'stat', range: [0.03, 0.06], pct: true, desc: '暴击率 +{v}' },
   dodge: { name: '灵动', kind: 'stat', range: [0.02, 0.05], pct: true, desc: '闪避率 +{v}' },
-  hpPct: { name: '坚体', kind: 'stat', range: [0.05, 0.12], pct: true, desc: '气血 +{v}' }
+  hpPct: { name: '坚体', kind: 'stat', range: [0.05, 0.12], pct: true, desc: '气血 +{v}' },
+  atkPct: { name: '锋锐', kind: 'stat', range: [0.04, 0.10], pct: true, desc: '攻击 +{v}' },
+  defPct: { name: '金身', kind: 'stat', range: [0.05, 0.12], pct: true, desc: '防御 +{v}' }
 };
 
 /*
  * 炼器法宝:只能通过「炼器 + 器图」获得,品质固定(白~金),效果固定(白~蓝 1 条,紫/金 2 条)
  * 器图等级决定成品数值倍率(config.bpEffect)
  */
+/* 特殊法宝 stats 与普通法宝同一量级(白色 0 级基准),实际 × 品质倍率 × 1.16^强度 × 1.6 × 器图倍率 */
 XX.data.forgeTreasures = {
-  eq_qingfeng: { name: '青锋剑', q: 0, icon: 'item/sword', hue: 160, desc: '剑气清冽的入门飞剑。', stats: { atk: 16, crit: 0.01 }, effects: ['crit'] },
-  eq_yunwen: { name: '云纹宝衣', q: 0, icon: 'item/robe', hue: 40, desc: '织入云纹禁制的护身法衣。', stats: { hp: 110, def: 10 }, effects: ['hpPct'] },
-  eq_shehun: { name: '摄魂铃', q: 1, icon: 'item/bell', hue: 300, desc: '铃声摄人心魄。', stats: { atk: 20, sense: 14 }, effects: ['pierce'] },
-  eq_qiankun: { name: '乾坤镯', q: 1, icon: 'item/bracelet', hue: 40, desc: '可收纳乾坤,护主周全。', stats: { hp: 200, def: 16 }, effects: ['thorns'] },
-  eq_jianxia: { name: '青冥剑匣', q: 2, icon: 'item/swordcase', desc: '匣中藏剑三千,一念出鞘。', stats: { atk: 30, crit: 0.03 }, effects: ['double'] },
-  eq_zhenhun: { name: '镇魂钟', q: 2, icon: 'item/bell', hue: 200, desc: '钟声一响,群邪辟易。', stats: { def: 22, sense: 24, mp: 60 }, effects: ['mpRegen'] },
-  eq_zhaohun: { name: '招魂幡', q: 3, icon: 'item/banner', hue: 150, desc: '幡动则百魂随行,吞噬生机。', stats: { atk: 30, hp: 150 }, effects: ['lifesteal', 'critDmg'] },
-  eq_kunlun: { name: '昆仑镜', q: 3, icon: 'item/mirror', desc: '照见万物本源,洞穿虚实。', stats: { atk: 26, sense: 32, crit: 0.04 }, effects: ['pierce', 'crit'] },
-  eq_fantian: { name: '翻天印', q: 4, icon: 'item/seal', desc: '一印落下,山岳崩摧。', stats: { atk: 52, critDmg: 0.15 }, effects: ['critDmg', 'double'] },
-  eq_linglong: { name: '玲珑宝塔', q: 4, icon: 'item/pagoda', desc: '塔镇八方,聚天地灵气于一身。', stats: { hp: 260, def: 26, mp: 90 }, effects: ['rate', 'hpPct'] },
-  eq_zijin: { name: '紫金葫芦', q: 4, icon: 'item/gourd', hue: 60, desc: '葫中自有洞天,福缘深厚。', stats: { mp: 170, sense: 24, dodge: 0.03 }, effects: ['luck', 'dodge'] }
+  /* 白 */
+  eq_qingfeng: { name: '青锋剑', q: 0, icon: 'item/sword', hue: 160, desc: '剑气清冽的入门飞剑。', stats: { atk: 14, crit: 0.01 }, effects: ['crit'] },
+  eq_yunwen: { name: '云纹宝衣', q: 0, icon: 'item/robe', hue: 40, desc: '织入云纹禁制的护身法衣。', stats: { hp: 100, def: 9 }, effects: ['hpPct'] },
+  eq_qingxin: { name: '清心玉笛', q: 0, icon: 'item/flute', hue: 30, desc: '笛声涤荡心神,灵力绵绵不绝。', stats: { mp: 45, sense: 8 }, effects: ['mpRegen'] },
+  eq_tayun: { name: '踏云靴', q: 0, icon: 'item/boots', hue: 200, desc: '足踏祥云,身轻如燕。', stats: { spd: 8, def: 6, dodge: 0.01 }, effects: ['dodge'] },
+  /* 绿 */
+  eq_shehun: { name: '摄魂铃', q: 1, icon: 'item/bell', hue: 300, desc: '铃声摄人心魄。', stats: { atk: 10, sense: 10 }, effects: ['pierce'] },
+  eq_qiankun: { name: '乾坤镯', q: 1, icon: 'item/bracelet', hue: 40, desc: '可收纳乾坤,护主周全。', stats: { hp: 90, def: 8 }, effects: ['thorns'] },
+  eq_bishui: { name: '碧水扇', q: 1, icon: 'item/fan', hue: 60, desc: '一扇碧波起,再扇浪滔天。', stats: { atk: 11, dodge: 0.015 }, effects: ['double'] },
+  eq_xuangui: { name: '玄龟盾', q: 1, icon: 'item/shell', hue: 300, desc: '玄龟真灵所化,万法难侵。', stats: { def: 12, hp: 60 }, effects: ['defPct'] },
+  /* 蓝 */
+  eq_jianxia: { name: '青冥剑匣', q: 2, icon: 'item/swordcase', desc: '匣中藏剑三千,一念出鞘。', stats: { atk: 13, crit: 0.02 }, effects: ['double'] },
+  eq_zhenhun: { name: '镇魂钟', q: 2, icon: 'item/bell', hue: 200, desc: '钟声一响,群邪辟易。', stats: { def: 7, sense: 10, mp: 30 }, effects: ['mpRegen'] },
+  eq_jiuxiao: { name: '九霄环佩琴', q: 2, icon: 'item/guqin', hue: 330, desc: '琴音直上九霄,声声夺魄。', stats: { atk: 11, sense: 8 }, effects: ['critDmg'] },
+  eq_luohun: { name: '落魂伞', q: 2, icon: 'item/umbrella', hue: 200, desc: '伞开则阴风四起,敌刃难近其身。', stats: { def: 8, hp: 60, dodge: 0.01 }, effects: ['dodge'] },
+  /* 紫 */
+  eq_zhaohun: { name: '招魂幡', q: 3, icon: 'item/banner', hue: 150, desc: '幡动则百魂随行,吞噬生机。', stats: { atk: 10, hp: 60 }, effects: ['lifesteal', 'critDmg'] },
+  eq_kunlun: { name: '昆仑镜', q: 3, icon: 'item/mirror', desc: '照见万物本源,洞穿虚实。', stats: { atk: 9, sense: 10, crit: 0.02 }, effects: ['pierce', 'crit'] },
+  eq_zidian: { name: '紫电神枪', q: 3, icon: 'item/spear', hue: 230, desc: '枪身缠绕紫电,一击破军。', stats: { atk: 12, spd: 5 }, effects: ['pierce', 'atkPct'] },
+  eq_liuli: { name: '八宝琉璃灯', q: 3, icon: 'item/lantern', hue: 160, desc: '琉璃灯火照彻三界,滋养元神。', stats: { hp: 90, mp: 35 }, effects: ['hpPct', 'rate'] },
+  /* 金 */
+  eq_fantian: { name: '翻天印', q: 4, icon: 'item/seal', desc: '一印落下,山岳崩摧。', stats: { atk: 14, critDmg: 0.1 }, effects: ['critDmg', 'double'] },
+  eq_linglong: { name: '玲珑宝塔', q: 4, icon: 'item/pagoda', desc: '塔镇八方,聚天地灵气于一身。', stats: { hp: 80, def: 8, mp: 30 }, effects: ['rate', 'hpPct'] },
+  eq_zijin: { name: '紫金葫芦', q: 4, icon: 'item/gourd', hue: 60, desc: '葫中自有洞天,福缘深厚。', stats: { mp: 50, sense: 8, dodge: 0.02 }, effects: ['luck', 'dodge'] },
+  eq_dinghai: { name: '定海神珠', q: 4, icon: 'item/pearl', hue: 40, desc: '二十四颗神珠化二十四诸天,定住四海。', stats: { mp: 40, def: 10, hp: 50 }, effects: ['defPct', 'mpRegen'] },
+  eq_donghuang: { name: '东皇钟', q: 4, icon: 'item/goldbell', hue: 330, desc: '先天至宝,钟鸣镇压诸天。', stats: { def: 12, hp: 90, mp: 20 }, effects: ['thorns', 'defPct'] },
+  eq_zhuxianjian: { name: '诛仙剑', q: 4, icon: 'item/saber', hue: 300, desc: '诛仙四剑之首,非四圣不可破。', stats: { atk: 16, crit: 0.03 }, effects: ['pierce', 'critDmg'] },
+  eq_taiji: { name: '太极图', q: 4, icon: 'item/mirror', hue: 180, desc: '一图化阴阳,攻守兼备。', stats: { atk: 9, def: 9, sense: 8 }, effects: ['double', 'atkPct'] },
+  eq_hundunzhu: { name: '混沌珠', q: 4, icon: 'item/pearl', hue: 250, desc: '混沌初开凝结之珠,蕴藏无穷灵机。', stats: { hp: 100, mp: 40, sense: 10 }, effects: ['rate', 'lifesteal'] }
 };
 (function () {
   Object.keys(XX.data.forgeTreasures).forEach(function (id) {
     var t = XX.data.forgeTreasures[id];
-    XX.data.items[id] = { name: t.name, type: 'equip', forged: true, icon: t.icon, hue: t.hue, q: t.q, price: 60 * Math.pow(2.5, t.q), desc: t.desc, stats: t.stats, effects: t.effects };
+    XX.data.items[id] = { name: t.name, type: 'equip', forged: true, icon: t.icon, hue: t.hue, q: t.q, price: 60 * Math.pow(2.5, t.q), desc: t.desc + '(特殊法宝:不可强化,最多同时佩戴 2 件)', stats: t.stats, effects: t.effects };
   });
 })();
 
@@ -131,8 +176,8 @@ XX.data.items.ore_iron_g = { name: '玄铁精', type: 'material', icon: 'item/ir
 /* ========== 0.1.5 新增 ========== */
 (function () {
   var D = XX.data, I = D.items;
-  /* 强化石:历练副本固定掉落,只能强化普通法宝 */
-  I.stone_qh = { name: '强化石', type: 'material', icon: 'icon/lingshi', hue: 200, q: 0, price: 5, desc: '凝聚天地精华的灵石,历练副本固定掉落。用于强化普通法宝(特殊法宝无法强化)。' };
+  /* 强化石:历练副本基础掉落 30%,只能强化普通法宝 */
+  I.stone_qh = { name: '强化石', type: 'material', icon: 'icon/lingshi', hue: 200, q: 0, price: 5, desc: '凝聚天地精华的灵石,历练副本基础掉落 30%。用于强化普通法宝(特殊法宝无法强化)。' };
 
   /* 化神~渡劫材料(紫色,副本可掉落)与金色珍材(仅秘境) */
   var mats = [
@@ -143,6 +188,7 @@ XX.data.items.ore_iron_g = { name: '玄铁精', type: 'material', icon: 'item/ir
     ['crystal_xing', '星魂晶', 'item/bloodcrystal', 200, 3, 380, '蕴藏星辰之魂的晶石。'],
     ['ore_tianjing', '天晶', 'item/coldiron', 60, 3, 420, '天外坠落的晶石,大乘期炼器主材。'],
     ['herb_longxue', '龙血藤', 'item/wood', 330, 3, 440, '吸食真龙之血而生的灵藤。'],
+    ['herb_leihua', '劫雷花', 'item/herb', 200, 3, 500, '于劫云之下绽放的奇花,渡劫期炼丹主材。'],
     ['stone_jie', '劫雷石', 'item/darkiron', 60, 3, 480, '天劫雷霆淬炼万年的奇石,渡劫期所需。'],
     ['ore_hundun', '混沌石', 'item/darkiron', 250, 4, 1200, '开天辟地遗留的混沌之石,只在秘境出现。'],
     ['herb_busi', '不死神药', 'item/herb', 50, 4, 1500, '传说中的神药,只在秘境出现。'],
@@ -178,15 +224,6 @@ XX.data.items.ore_iron_g = { name: '玄铁精', type: 'material', icon: 'item/ir
       desc: '属性丹。每颗永久提升' + a.label + ' ' + (a.v * 100).toFixed(1) + '%(随品质提升,金色 ×2)。每种累计服用上限:炼气期 5 颗、筑基期 10 颗,之后每突破一个大境界上限 +15。', use: { kind: 'attr', key: a.key, v: a.v } };
   });
 
-  /* 后期特殊法宝(炼器) */
-  var late = {
-    eq_donghuang: { name: '东皇钟', q: 4, icon: 'item/bell', hue: 40, desc: '先天至宝,钟鸣镇压诸天。', stats: { def: 60, hp: 400, mp: 120 }, effects: ['thorns', 'hpPct'] },
-    eq_zhuxianjian: { name: '诛仙剑', q: 4, icon: 'item/sword', hue: 300, desc: '诛仙四剑之首,非四圣不可破。', stats: { atk: 80, crit: 0.05 }, effects: ['pierce', 'critDmg'] },
-    eq_taiji: { name: '太极图', q: 4, icon: 'item/mirror', hue: 180, desc: '一图化阴阳,攻守兼备。', stats: { atk: 50, def: 50, sense: 50 }, effects: ['double', 'dodge'] },
-    eq_hundunzhu: { name: '混沌珠', q: 4, icon: 'item/pagoda', hue: 250, desc: '混沌初开凝结之珠,蕴藏无穷灵机。', stats: { hp: 500, mp: 200, sense: 60 }, effects: ['rate', 'lifesteal'] }
-  };
-  Object.keys(late).forEach(function (id) { D.forgeTreasures[id] = late[id]; var t = late[id];
-    I[id] = { name: t.name, type: 'equip', forged: true, icon: t.icon, hue: t.hue, q: t.q, price: 60 * Math.pow(2.5, t.q), desc: t.desc, stats: t.stats, effects: t.effects }; });
 })();
 
 /* 物品的实际品质:按品质着色的丹药(突破丹、属性丹)品质 = 品级 - 1 */

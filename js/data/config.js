@@ -3,7 +3,7 @@ window.XX = window.XX || { data: {}, sys: {}, pages: {}, screens: {} };
 
 XX.config = {
   gameName: '问道长生',
-  version: '0.1.5',
+  version: '0.1.6',
   saveKey: 'wendao_changsheng_save',
   tickMs: 3000,            // 修炼结算周期:每 3 秒
   bagCapacity: 50,         // 初始背包格子
@@ -62,6 +62,16 @@ XX.config = {
   },
   /* 品质与掉落:所有掉落物的实际概率 = 填写概率 × tierDropMul[品质](品质越高按比例降低) */
   tierDropMul: [1, 0.5, 0.25, 0.125, 0.0625],
+  /* 气运提高掉率:每点 +0.5%(100 气运 ≈ +50%,如 30% → 45%),最多按 200 点计 */
+  luckDropPer: 0.005, luckDropMaxLuck: 200,
+  /* 每个历练副本的基础掉落:玄铁 30%、强化石 30%(数量随副本强度增加) */
+  dungeonBaseDrops: [['ore_iron', 0.30], ['stone_qh', 0.30]],
+  /* 炼丹/炼器耗时:白 1 分钟,每高一个品质 +1 分钟;特殊丹药双倍 */
+  craftMinutes: [1, 2, 3, 4, 5], craftSpecialMul: 2,
+  /* 特殊法宝炼制强度 = max(器图基准, 当前境界序号),属性倍率高于普通法宝 */
+  specialStatMul: 1.6, specialAffixMul: 1.2,
+  /* 战斗:回合上限(超过判负)、单次伤害上限(占目标最大气血)、保底伤害、治疗衰减、护盾/吸血/反震上限 */
+  battle: { maxRounds: 30, hitCap: 0.35, critCap: 0.5, skillCap: 0.5, minDmgAtk: 0.15, healDecay: 0.7, shieldCap: 0.5, lifestealCap: 0.08, thornsCap: 0.06 },
   dungeonMaxQ: 3,          // 副本掉落最高品质(紫),金色不会出现在副本
   secretMinQ: 3,           // 秘境掉落最低品质(紫),且不掉落特殊道具
 

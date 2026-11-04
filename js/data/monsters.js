@@ -35,4 +35,5 @@ XX.data.monsters = {
 };
 
 /* 妖兽基础曲线(power 相当于同等境界序号) */
-XX.data.monsterCurve = { hp: [95, 1.172], atk: [13, 1.163], def: [4.5, 1.165], spd: [9, 1.9] };
+/* 0.1.6:气血 ×1.6、攻击 ×1.5,配合单次伤害上限,战斗约 3~8 回合 */
+XX.data.monsterCurve = { hp: [152, 1.172], atk: [19.5, 1.163], def: [4.5, 1.165], spd: [9, 1.9], secretPlus: 1.5 };

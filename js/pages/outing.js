@@ -22,12 +22,14 @@ XX.pages.outing = (function () {
   };
 
   /* ---------- 掉落详情弹窗(点击物品可查看介绍)---------- */
-  function dropHtml(drops, table, lvText, isSecret, qh) {
-    var html = (qh ? '<div class="drop-title">固定掉落</div><div class="drop-grid"><button class="drop" data-item="stone_qh">' + U.itemIcon('stone_qh', 'sm') + '<span>' + U.itemName('stone_qh') + '</span><em>×' + qh[0] + (qh[1] > qh[0] ? '~' + qh[1] : '') + '</em></button></div>' : '') +
-      '<div class="drop-title">可能掉落' + '<span class="muted small">(品质越高越难获得)</span>' + '</div><div class="drop-grid">' + drops.filter(function (d) { return XX.sys.battle.dropAllowed(d, isSecret); }).map(function (d) {
-      var p = XX.sys.battle.dropChance(d, isSecret);
+  function dropHtml(drops, table, lvText, isSecret, area) {
+    var lm = XX.sys.battle.luckMul(), luckTxt = lm > 1 ? '(已含气运加成 +' + U.pct(lm - 1, 0) + ',品质越高越难获得)' : '(品质越高越难获得)';
+    function cell(d) {
+      var p = Math.min(1, XX.sys.battle.dropChance(d, isSecret) * lm);
       return '<button class="drop" data-item="' + d[0] + '" data-g="' + (d[4] || '') + '">' + U.itemIcon(d[0], 'sm', null, { g: d[4] }) + '<span>' + U.itemName(d[0], d[4]) + '</span><em>' + U.pct(p, p < 0.01 ? 2 : p < 0.1 ? 1 : 0) + '</em></button>';
-    }).join('') + '</div>';
+    }
+    var html = (area ? '<div class="drop-title">基础掉落<span class="muted small">(每个副本都有)</span></div><div class="drop-grid">' + XX.sys.battle.baseDrops(area).map(cell).join('') + '</div>' : '') +
+      '<div class="drop-title">可能掉落<span class="muted small">' + luckTxt + '</span></div><div class="drop-grid">' + drops.filter(function (d) { return XX.sys.battle.dropAllowed(d, isSecret); }).map(cell).join('') + '</div>';
     html += '<div class="drop-title">法宝掉落(' + lvText + ')</div><div class="tq-row">' + table.map(function (p, q) {
       var Q = C.qualities[q];
       return '<div class="tq" style="--qc:' + Q.color + '"><b>◆</b><span>' + (p ? U.pct(p, p < 0.01 ? 1 : 0) : '—') + '</span></div>';
@@ -49,7 +51,7 @@ XX.pages.outing = (function () {
     }).join('') + '</div>' +
       '<div class="small">需求境界:<b class="' + (lock ? 'danger' : 'ok') + '">' + D.realms[a.reqRealm].name + '</b>' +
       (isSecret ? ' · ' + a.floors.length + ' 层 · 通关仙玉 ' + a.reward.jade[0] + '~' + a.reward.jade[1] : ' · 灵石 ' + a.stone[0] + '~' + a.stone[1]) + '</div>' +
-      dropHtml(a.drops, isSecret ? C.treasureDrop.secret : C.treasureDrop.dungeon, (isSecret ? a.power + 1 : a.power) + ' 级', isSecret, isSecret ? null : a.qh);
+      dropHtml(a.drops, isSecret ? C.treasureDrop.secret : C.treasureDrop.dungeon, (isSecret ? a.power + 1 : a.power) + ' 级', isSecret, isSecret ? null : a);
     XX.ui.modal({
       title: a.name, html: html, cls: 'area-modal',
       buttons: [{ text: '关闭' }, { text: isSecret ? '进入秘境' : '前往历练', cls: 'primary', disabled: lock, onClick: function () {
@@ -193,7 +195,7 @@ XX.pages.outing = (function () {
         if (r.reward.treasure && r.reward.treasure.q >= 2) XX.ui.toast('获得法宝 <span style="color:' + U.qColor(r.reward.treasure.q) + '">' + r.reward.treasure.name + '</span>', 'ok');
         BV.foeDie();
       } else {
-        logLine('<span class="danger">落败……</span> 你重伤遁走,需提升实力再来。', 'lose');
+        logLine(r.timeout ? '<span class="danger">' + C.battle.maxRounds + ' 回合未分胜负,判定失败……</span> 需提升攻击力再来。' : '<span class="danger">落败……</span> 你重伤遁走,需提升实力再来。', 'lose');
         auto = false; if (U.$('#bt-auto')) U.$('#bt-auto').checked = false;
       }
       if (PG._exit) { PG._exit = false; PG.list(); return; }
@@ -238,7 +240,7 @@ XX.pages.outing = (function () {
       logLine('—— 第 ' + f.floor + ' 层:' + f.monster.name + ' ——', 'sep');
       play({ monster: f.monster, pStart: f.pStart, pMax: f.pMax, pMp: f.pMp, pMaxMp: f.pMaxMp, events: f.events }, function () {
         if (f.win) { logLine('<span class="ok">击败 ' + f.monster.name + '</span>,调息片刻恢复三成气血', 'win'); BV.foeDie(); }
-        else logLine('<span class="danger">不敌 ' + f.monster.name + '</span>', 'lose');
+        else logLine(f.timeout ? '<span class="danger">' + C.battle.maxRounds + ' 回合未能击败 ' + f.monster.name + ',判定失败</span>' : '<span class="danger">不敌 ' + f.monster.name + '</span>', 'lose');
         waitT = setTimeout(next, 900);
       });
     }
